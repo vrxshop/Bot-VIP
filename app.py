@@ -210,7 +210,7 @@ def is_tariff_paid(user_id: int, tariff_key: str):
 # ==================================================
 LANG = {
     "ru": {
-       "start_welcome": "💬 Привет, {name}!\n\n📜 <a href=\"{offer}\">Пользовательское соглашение</a>\n🔒 <a href=\"{policy}\">Политика конфиденциальности</a>\n\n🚀 VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ\n\nЗдесь ты получаешь всё в одном месте:\n— Школьницы, вписки, студентки, альтушки\n— Мини Детск, жесть, износы и другие тарифы\n— Ежедневное обновление контента\n— Приватный чат для VIP пользователей\n— Скупаю контент в других ботах, и сливаю в VIP\n— Поддержка 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.",
+        "start_welcome": "💬 Привет, {name}!\n\n📜 <a href=\"{offer}\">Пользовательское соглашение</a>\n🔒 <a href=\"{policy}\">Политика конфиденциальности</a>\n\n🚀 VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ\n\nЗдесь ты получаешь всё в одном месте:\n— Школьницы, вписки, закладчицы, альтушки\n— Мини Детск, жесть, износы и другие тарифы\n— Ежедневное обновление контента\n— Приватный чат для VIP пользователей\n— Скупаю контент в других ботах, и сливаю в VIP\n— Поддержка 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.",
         "prices_menu": "📋 <b>Прайс</b>\n\nВыберите тариф, чтобы узнать подробности и оформить покупку.",
         "subs_menu": "📋 <b>Ваши подписки</b>\n\n{list}",
         "no_subs": "⌛️ <b>У вас пока нет активных подписок.</b>\n\nВыберите тариф, чтобы оформить доступ.",
@@ -243,7 +243,7 @@ LANG = {
         "subs_list_item": "• {name} (оплачен ✅)",
     },
     "en": {
-        "start_welcome": "💬 Hello, {name}!\n\n📜 <a href=\"{offer}\">Terms of Service</a>\n🔒 <a href=\"{policy}\">Privacy Policy</a>\n\n🚀 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, students, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Private chat for VIP users\n— Support 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.",
+        "start_welcome": "💬 Hello, {name}!\n\n📜 <a href=\"{offer}\">Terms of Service</a>\n🔒 <a href=\"{policy}\">Privacy Policy</a>\n\n🚀 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, stashers, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Private chat for VIP users\n— I buy content in other bots and merge it into VIP\n— Support 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.",
         "prices_menu": "📋 <b>Prices</b>\n\nSelect a tariff to view details and make a purchase.",
         "subs_menu": "📋 <b>Your subscriptions</b>\n\n{list}",
         "no_subs": "⌛️ <b>You don't have any active subscriptions.</b>\n\nSelect a tariff to get access.",
@@ -289,7 +289,7 @@ TARIFFS = {
         "duration_ru": "7 дней",
         "duration_en": "7 days",
         "category": "main",
-        "desc_ru": "Ты получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nЭто выгодно, если:\n— Ты хочешь попробовать, что у меня есть.\n— Тебе нужен доступ на короткий срок."
+        "desc_ru": "Ты получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nЭто выгодно, если:\n— Ты хочешь попробовать, что у меня есть.\n— Тебе нужен доступ на короткий срок."
     },
     "month": {
         "name_ru": "👑 VIP на месяц — 449 ₽",
@@ -299,7 +299,7 @@ TARIFFS = {
         "duration_ru": "30 дней",
         "duration_en": "30 days",
         "category": "main",
-        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день.\n— Ты экономишь больше 50% по сравнению с покупкой отдельных тарифов."
+        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день.\n— Ты экономишь больше 50% по сравнению с покупкой отдельных тарифов."
     },
     "year": {
         "name_ru": "🔥 VIP на год — 1299 ₽",
@@ -309,7 +309,7 @@ TARIFFS = {
         "duration_ru": "365 дней",
         "duration_en": "365 days",
         "category": "main",
-        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений."
+        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений."
     }
 }
 
@@ -331,7 +331,7 @@ PROMO_CODES = {
     "HOMAKE40": 40,
     "BANK50": 50,
     "LOLIPOP80": 80,
-    "newpopolnenie": 60
+    "newzaliv": 60
 }
 
 # --- ИНИЦИАЛИЗАЦИЯ ---
@@ -730,7 +730,7 @@ async def mail_discount_40(callback: CallbackQuery):
 @dp.callback_query(F.data == "mail_discount_60")
 async def mail_discount_60(callback: CallbackQuery):
     user_id = callback.from_user.id
-    add_user_discount(user_id, "newpopolnenie", 60)
+    add_user_discount(user_id, "newzaliv", 60)
     
     await callback.message.edit_text(
         "🏷️ <b>Скидка 60% активирована!</b>\n\n"
