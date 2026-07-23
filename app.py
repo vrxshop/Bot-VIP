@@ -37,8 +37,7 @@ def health():
 # ==================================================
 # SUPABASE
 # ==================================================
-# ЗАМЕНИ НА СВОЮ СТРОКУ ПОДКЛЮЧЕНИЯ!
-SUPABASE_URL = "postgresql://postgres.ТВОЙ_ПРОЕКТ:ТВОЙ_ПАРОЛЬ@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
+SUPABASE_URL = "postgresql://postgres.hbjcrkcvaiuktkdrpema:gPldQXhIjtSeXTN4@aws-0-eu-north-1.pooler.supabase.com:6543/postgres"
 
 engine = create_engine(
     SUPABASE_URL,
@@ -125,7 +124,7 @@ def mark_discount_used(user_id: int, discount_code: str):
 ROLLYPAY_API_KEY = "z39_r_COJdiB7PWeddOYvzT2rx4cjIbS1m4JJcgBTi0"
 ROLLYPAY_CALLBACK_URL = "https://t-bot-18jz.onrender.com/webhook"
 
-BOT_TOKEN = "8405743009:AAFmmRNDGWGDnxQbIDPVtiAprSnh0aq9g0U"  # НОВЫЙ ТОКЕН!
+BOT_TOKEN = "8405743009:AAFmmRNDGWGDnxQbIDPVtiAprSnh0aq9g0U"
 PROJECT_NAME = "VIP"
 SUPPORT_CONTACT_RU = "https://t.me/Nastia_sup"
 SUPPORT_CONTACT_EN = "https://t.me/Nastia_sup"
@@ -141,13 +140,13 @@ DOCS_EN = {
 }
 
 # ==================================================
-# ID КАНАЛОВ (ЗАМЕНИ НА СВОИ!)
+# ID КАНАЛОВ
 # ==================================================
 CHANNEL_IDS = {
-    "week": "-1004267025056",    # ЗАМЕНИ
-    "month": "-1004478645537",   # ЗАМЕНИ
-    "year": "-1004325704012",    # ЗАМЕНИ
-    "test": "-1003875225035",    # ЗАМЕНИ
+    "week": "-1004267025056",
+    "month": "-1004478645537",
+    "year": "-1004325704012",
+    "test": "-1003875225035",
 }
 
 # ==================================================
@@ -211,21 +210,21 @@ def is_tariff_paid(user_id: int, tariff_key: str):
 # ==================================================
 LANG = {
     "ru": {
-        "start_welcome": "💬 Привет, {name}!\n\n📜 <a href=\"{offer}\">Пользовательское соглашение</a>\n🔒 <a href=\"{policy}\">Политика конфиденциальности</a>\n\n🚀 <b>VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ</b>\n\n▫️ Школьницы, вписки, студентки, альтушки\n▫️ Мини Детск, жесть, износы и другие тарифы\n▫️ Ежедневное обновление контента\n▫️ Приватный чат для VIP пользователей\n▫️ Поддержка 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.\n\n📢 <a href=\"https://t.me/+HkgtwLYWumJiMTcx\">Наши отзывы</a>",
-        "prices_menu": "📋 <b>Выберите тариф, чтобы узнать подробности и оформить покупку.</b>",
-        "subs_menu": "📋 <b>Ваши активные подписки</b>\n\n{list}",
-        "no_subs": "⌛️ <b>У Вас нет действующих подписок.</b>\n\nВыберите тариф, чтобы оформить доступ.",
-        "tariff_desc": "📋 <b>{name}</b>\n\n💰 Цена: {price_text}\nСрок доступа: {duration}\n\n{desc}",
-        "tariff_desc_paid": "📋 <b>{name}</b>\n\n💰 Цена: {price_text}\nСрок доступа: {duration}\n\n{desc}\n\n✅ <b>ТАРИФ ОПЛАЧЕН</b>\n\n🔑 Для получения ссылки напишите в поддержку @Nastia_sup",
-        "enter_promo": "🏷️ <b>Введите код промокода</b>\n\nНапишите промокод в чат.",
-        "promo_success": "✅ Промокод <b>{code}</b> активирован! Скидка {discount}% 🔥\n\n📋 <b>{name}</b>\n💰 Цена: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nВыберите валюту для оплаты.",
-        "promo_fail": "❌ Промокод не найден. Попробуйте еще раз (или нажмите ◀️ Отмена).",
-        "choose_pay": "📋 <b>{name}</b>\nСрок доступа: {duration}\n💰 Цена: {price_text}\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\nВыберите валюту для оплаты тарифа",
-        "pay_rub": "📋 <b>{name}</b>\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: RollyPay\n\n💰 Итоговая стоимость: {final} RUB\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\n✅ Счет на оплату сформирован!",
-        "pay_stars": "📋 <b>{name}</b>\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: ЗА ЗВЕЗДЫ ⭐\n\n💰 Итоговая стоимость: {final} STARS\n\nℹ️ <b>Информация по оплате</b>\nПодарить звезды или подарки на этот аккаунт - <a href=\"{support}\">@Nastia_sup</a>\n\nкурс:\n1 ⭐ - 1 рубль",
+        "start_welcome": "💬 Привет, {name}!\n\n📜 <a href=\"{offer}\">Пользовательское соглашение</a>\n🔒 <a href=\"{policy}\">Политика конфиденциальности</a>\n\n🚀 VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ\n\nЗдесь ты получаешь всё в одном месте:\n— Школьницы, вписки, студентки, альтушки\n— Мини Детск, жесть, износы и другие тарифы\n— Ежедневное обновление контента\n— Приватный чат для VIP пользователей\n— Поддержка 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.",
+        "prices_menu": "📋 <b>Прайс</b>\n\nВыберите тариф, чтобы узнать подробности и оформить покупку.",
+        "subs_menu": "📋 <b>Ваши подписки</b>\n\n{list}",
+        "no_subs": "⌛️ <b>У вас пока нет активных подписок.</b>\n\nВыберите тариф, чтобы оформить доступ.",
+        "tariff_desc": "📋 {name}\n\n💰 Цена: {price_text} RUB\n\n{desc}\n\n🔐 Будет получен доступ на срок {duration} к:\n• Shkod VIP👑 (внешняя ссылка)",
+        "tariff_desc_paid": "📋 {name}\n\n💰 Цена: {price_text} RUB\n\n{desc}\n\n🔐 Будет получен доступ на срок {duration} к:\n• Shkod VIP👑 (внешняя ссылка)\n\n✅ <b>ТАРИФ ОПЛАЧЕН</b>\n\n🔑 Для получения ссылки напишите в поддержку @Nastia_sup",
+        "enter_promo": "🏷️ <b>Введите промокод</b>\n\nНапишите промокод в чат.",
+        "promo_success": "✅ Промокод <b>{code}</b> активирован! Скидка {discount}% 🔥\n\n📋 {name}\n💰 Цена: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nВыберите валюту для оплаты.",
+        "promo_fail": "❌ Промокод не найден. Попробуйте еще раз.",
+        "choose_pay": "📋 {name}\nСрок доступа: {duration}\n💰 Цена: {price_text}\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\nВыберите валюту для оплаты",
+        "pay_rub": "📋 {name}\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: RollyPay\n\n💰 Итоговая стоимость: {final} RUB\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\n✅ Счет на оплату сформирован!",
+        "pay_stars": "📋 {name}\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: ЗА ЗВЕЗДЫ ⭐\n\n💰 Итоговая стоимость: {final} STARS\n\nℹ️ <b>Информация по оплате</b>\nПодарить звезды или подарки на этот аккаунт - <a href=\"{support}\">@Nastia_sup</a>\n\nкурс:\n1 ⭐ - 1 рубль",
         "refresh_link": "♻️ <i>Ссылка обновлена!</i>",
-        "btn_prices": "💵 Тарифы",
-        "btn_subs": "⏳ Мои подписки",
+        "btn_prices": "🛒 Прайс",
+        "btn_subs": "🛍️ Подписки",
         "btn_promo": "🏷️ Ввести промокод",
         "btn_pay": "💳 Способы оплаты",
         "btn_back": "👈 НАЗАД",
@@ -242,24 +241,23 @@ LANG = {
         "payment_success": "✅ <b>Оплата прошла!</b>\n\n🔗 <b>Ваша ссылка доступа (действует 30 секунд):</b>\n{link}\n\n⚠️ <b>Внимание!</b> Ссылка действительна только 30 секунд!\n\nСпасибо за покупку! ❤️",
         "payment_success_test": "✅ <b>Доступ открыт!</b>\n\n🔗 <b>Ваша ссылка доступа (действует 30 секунд):</b>\n{link}\n\n⚠️ <b>Внимание!</b> Ссылка действительна только 30 секунд!\n\nСпасибо за использование бота! ❤️",
         "subs_list_item": "• {name} (оплачен ✅)",
-        "main_menu_text": "🔥 VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ\n\nЗдесь ты получаешь всё в одном месте:\n— Школьницы, вписки, студентки, альтушки\n— Мини Детск, жесть, износы и другие тарифы\n— Ежедневное обновление контента\n— Сообщество, приватный чат для VIP пользователей\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.\n\nВыбери свой тариф ниже 👇"
     },
     "en": {
-        "start_welcome": "💬 Hello, {name}!\n\n📜 <a href=\"{offer}\">Terms of Service</a>\n🔒 <a href=\"{policy}\">Privacy Policy</a>\n\n🚀 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, students, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Community, private chat for VIP users\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.\n\n<a href=\"https://t.me/+HkgtwLYWumJiMTcx\">📢 OUR REVIEWS</a>",
-        "prices_menu": "📋 <b>Select a tariff to view details and make a purchase.</b>",
-        "subs_menu": "📋 <b>Your active subscriptions</b>\n\n{list}",
+        "start_welcome": "💬 Hello, {name}!\n\n📜 <a href=\"{offer}\">Terms of Service</a>\n🔒 <a href=\"{policy}\">Privacy Policy</a>\n\n🚀 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, students, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Private chat for VIP users\n— Support 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.",
+        "prices_menu": "📋 <b>Prices</b>\n\nSelect a tariff to view details and make a purchase.",
+        "subs_menu": "📋 <b>Your subscriptions</b>\n\n{list}",
         "no_subs": "⌛️ <b>You don't have any active subscriptions.</b>\n\nSelect a tariff to get access.",
-        "tariff_desc": "📋 <b>{name}</b>\n\n💰 Price: {price_text}\nAccess duration: {duration}\n\n{desc}",
-        "tariff_desc_paid": "📋 <b>{name}</b>\n\n💰 Price: {price_text}\nAccess duration: {duration}\n\n{desc}\n\n✅ <b>TARIFF PAID</b>\n\n🔑 To get the link contact support @Nastia_sup",
+        "tariff_desc": "📋 {name}\n\n💰 Price: {price_text} RUB\n\n{desc}\n\n🔐 You will get access for {duration} to:\n• Shkod VIP👑 (external link)",
+        "tariff_desc_paid": "📋 {name}\n\n💰 Price: {price_text} RUB\n\n{desc}\n\n🔐 You will get access for {duration} to:\n• Shkod VIP👑 (external link)\n\n✅ <b>TARIFF PAID</b>\n\n🔑 To get the link contact support @Nastia_sup",
         "enter_promo": "🏷️ <b>Enter promo code</b>\n\nType the promo code in the chat.",
-        "promo_success": "✅ Promo code <b>{code}</b> activated! {discount}% discount 🔥\n\n📋 <b>{name}</b>\n💰 Price: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nChoose a currency for payment.",
-        "promo_fail": "❌ Promo code not found. Try again (or press ◀️ Cancel).",
-        "choose_pay": "📋 <b>{name}</b>\nAccess duration: {duration}\n💰 Price: {price_text}\n\n🔒 You will get access to:\n• {project} (external link)\n\nChoose a currency for payment",
-        "pay_rub": "📋 <b>{name}</b>\nAccess duration: {duration}\n{price_line}💳 Payment method: RollyPay\n\n💰 Total cost: {final} RUB\n\n🔒 You will get access to:\n• {project} (external link)\n\n✅ Invoice created!",
-        "pay_stars": "📋 <b>{name}</b>\nAccess duration: {duration}\n{price_line}💳 Payment method: FOR STARS ⭐\n\n💰 Total cost: {final} STARS\n\nℹ️ <b>Payment info</b>\nSend stars or gifts to this account - <a href=\"{support}\">@Nastia_sup</a>\n\nRate:\n1 ⭐ - 1 ruble",
+        "promo_success": "✅ Promo code <b>{code}</b> activated! {discount}% discount 🔥\n\n📋 {name}\n💰 Price: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nChoose a currency for payment.",
+        "promo_fail": "❌ Promo code not found. Try again.",
+        "choose_pay": "📋 {name}\nAccess duration: {duration}\n💰 Price: {price_text}\n\n🔒 You will get access to:\n• {project} (external link)\n\nChoose a currency for payment",
+        "pay_rub": "📋 {name}\nAccess duration: {duration}\n{price_line}💳 Payment method: RollyPay\n\n💰 Total cost: {final} RUB\n\n🔒 You will get access to:\n• {project} (external link)\n\n✅ Invoice created!",
+        "pay_stars": "📋 {name}\nAccess duration: {duration}\n{price_line}💳 Payment method: FOR STARS ⭐\n\n💰 Total cost: {final} STARS\n\nℹ️ <b>Payment info</b>\nSend stars or gifts to this account - <a href=\"{support}\">@Nastia_sup</a>\n\nRate:\n1 ⭐ - 1 ruble",
         "refresh_link": "♻️ <i>Link refreshed!</i>",
-        "btn_prices": "💵 Prices",
-        "btn_subs": "⏳ My subscriptions",
+        "btn_prices": "🛒 Prices",
+        "btn_subs": "🛍️ Subscriptions",
         "btn_promo": "🏷️ Enter promo code",
         "btn_pay": "💳 Payment methods",
         "btn_back": "👈 Back",
@@ -276,12 +274,11 @@ LANG = {
         "payment_success": "✅ <b>Payment successful!</b>\n\n🔗 <b>Your access link (valid 30 seconds):</b>\n{link}\n\n⚠️ <b>Warning!</b> The link is valid only 30 seconds!\n\nThank you for your purchase! ❤️",
         "payment_success_test": "✅ <b>Access granted!</b>\n\n🔗 <b>Your access link (valid 30 seconds):</b>\n{link}\n\n⚠️ <b>Warning!</b> The link is valid only 30 seconds!\n\nThank you for using the bot! ❤️",
         "subs_list_item": "• {name} (paid ✅)",
-        "main_menu_text": "🔥 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, students, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Community, private chat for VIP users\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.\n\nChoose your tariff below 👇"
     }
 }
 
 # ==================================================
-# ТАРИФЫ (ТОЛЬКО 3!)
+# ТАРИФЫ
 # ==================================================
 TARIFFS = {
     "week": {
@@ -292,7 +289,7 @@ TARIFFS = {
         "duration_ru": "7 дней",
         "duration_en": "7 days",
         "category": "main",
-        "desc_ru": "🔥 НЕДЕЛЯ ДОСТУПА — 199 ₽\n\nТы получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nЭто выгодно, если:\n— Ты хочешь попробовать, что у меня есть.\n— Тебе нужен доступ на короткий срок.\n\nЦена: 199 ₽"
+        "desc_ru": "Ты получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nЭто выгодно, если:\n— Ты хочешь попробовать, что у меня есть.\n— Тебе нужен доступ на короткий срок."
     },
     "month": {
         "name_ru": "👑 VIP на месяц — 449 ₽",
@@ -302,7 +299,7 @@ TARIFFS = {
         "duration_ru": "30 дней",
         "duration_en": "30 days",
         "category": "main",
-        "desc_ru": "🔥 МЕСЯЦ ДОСТУПА — 449 ₽\n\nТы получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день.\n— Ты экономишь больше 50% по сравнению с покупкой отдельных тарифов.\n\nЦена: 449 ₽"
+        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день.\n— Ты экономишь больше 50% по сравнению с покупкой отдельных тарифов."
     },
     "year": {
         "name_ru": "🔥 VIP на год — 1299 ₽",
@@ -312,7 +309,7 @@ TARIFFS = {
         "duration_ru": "365 дней",
         "duration_en": "365 days",
         "category": "main",
-        "desc_ru": "🔥 ГОД ДОСТУПА — 1 299 ₽\n\nТы получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений.\n\nЦена: 1 299 ₽"
+        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений."
     }
 }
 
@@ -440,7 +437,6 @@ def get_main_keyboard(lang):
     ], resize_keyboard=True)
 
 def get_tariff_keyboard(lang):
-    """Все 3 тарифа в одном меню"""
     buttons = []
     for key, data in TARIFFS.items():
         name = data['name_ru'] if lang == 'ru' else data['name_en']
@@ -511,17 +507,41 @@ async def cmd_start(message: Message, state: FSMContext):
     
     lang = await get_lang(state)
     
-    # ПЕРВОЕ СООБЩЕНИЕ (приветствие + ссылки + отзывы)
     welcome_text = LANG[lang]["start_welcome"].format(
         name=first_name,
         offer=DOCS_RU["offer"],
         policy=DOCS_RU["policy"]
     )
-    await message.answer(welcome_text, disable_web_page_preview=True)
+    await message.answer(welcome_text, disable_web_page_preview=True, reply_markup=get_main_keyboard(lang))
+
+@dp.message(F.text == "🛒 Прайс")
+async def show_prices(message: Message, state: FSMContext):
+    lang = await get_lang(state)
+    await message.answer(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
+
+@dp.message(F.text == "🛍️ Подписки")
+async def show_subscriptions_button(message: Message, state: FSMContext):
+    lang = await get_lang(state)
+    user_id = message.from_user.id
     
-    # ВТОРОЕ СООБЩЕНИЕ (тарифы)
-    menu_text = LANG[lang]["prices_menu"]
-    await message.answer(menu_text, reply_markup=get_tariff_keyboard(lang))
+    paid_list = get_paid_tariffs(user_id)
+    
+    if paid_list:
+        subs_list = []
+        for tariff_key in paid_list:
+            if tariff_key == "test":
+                name = TEST_TARIFF['name_ru'] if lang == "ru" else TEST_TARIFF['name_en']
+                subs_list.append(LANG[lang]["subs_list_item"].format(name=name))
+            elif tariff_key in TARIFFS:
+                name = TARIFFS[tariff_key]['name_ru'] if lang == "ru" else TARIFFS[tariff_key]['name_en']
+                subs_list.append(LANG[lang]["subs_list_item"].format(name=name))
+        
+        if subs_list:
+            text = LANG[lang]["subs_menu"].format(list="\n".join(subs_list))
+            await message.answer(text)
+            return
+    
+    await message.answer(LANG[lang]["no_subs"])
 
 @dp.message(Command("admin"))
 async def cmd_admin(message: Message):
@@ -795,35 +815,6 @@ async def process_lang_change(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.delete()
     await callback.message.answer(f"✅ Язык установлен на {'Русский' if lang == 'ru' else 'English'}! Нажмите /start")
-
-@dp.message(F.text.in_([LANG["ru"]["btn_prices"], LANG["en"]["btn_prices"]]))
-async def show_prices(message: Message, state: FSMContext):
-    lang = await get_lang(state)
-    await message.answer(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
-
-@dp.message(F.text.in_([LANG["ru"]["btn_subs"], LANG["en"]["btn_subs"]]))
-async def show_subscriptions(message: Message, state: FSMContext):
-    lang = await get_lang(state)
-    user_id = message.from_user.id
-    
-    paid_list = get_paid_tariffs(user_id)
-    
-    if paid_list:
-        subs_list = []
-        for tariff_key in paid_list:
-            if tariff_key == "test":
-                name = TEST_TARIFF['name_ru'] if lang == "ru" else TEST_TARIFF['name_en']
-                subs_list.append(LANG[lang]["subs_list_item"].format(name=name))
-            elif tariff_key in TARIFFS:
-                name = TARIFFS[tariff_key]['name_ru'] if lang == "ru" else TARIFFS[tariff_key]['name_en']
-                subs_list.append(LANG[lang]["subs_list_item"].format(name=name))
-        
-        if subs_list:
-            text = LANG[lang]["subs_menu"].format(list="\n".join(subs_list))
-            await message.answer(text)
-            return
-    
-    await message.answer(LANG[lang]["no_subs"])
 
 @dp.callback_query(F.data == "back_to_prices")
 async def back_to_prices(callback: CallbackQuery, state: FSMContext):
