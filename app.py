@@ -37,7 +37,8 @@ def health():
 # ==================================================
 # SUPABASE
 # ==================================================
-SUPABASE_URL = "postgresql://postgres:5369fasF352@db.pyjpmckzoexfktjezjho.supabase.co:6543/postgres"
+# ЗАМЕНИ НА СВОЮ СТРОКУ ПОДКЛЮЧЕНИЯ!
+SUPABASE_URL = "postgresql://postgres.ТВОЙ_ПРОЕКТ:ТВОЙ_ПАРОЛЬ@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 
 engine = create_engine(
     SUPABASE_URL,
@@ -124,20 +125,29 @@ def mark_discount_used(user_id: int, discount_code: str):
 ROLLYPAY_API_KEY = "z39_r_COJdiB7PWeddOYvzT2rx4cjIbS1m4JJcgBTi0"
 ROLLYPAY_CALLBACK_URL = "https://t-bot-18jz.onrender.com/webhook"
 
-BOT_TOKEN = "8405743009:AAFmmRNDGWGDnxQbIDPVtiAprSnh0aq9g0U"
+BOT_TOKEN = "8405743009:AAFmmRNDGWGDnxQbIDPVtiAprSnh0aq9g0U"  # НОВЫЙ ТОКЕН!
 PROJECT_NAME = "VIP"
 SUPPORT_CONTACT_RU = "https://t.me/Nastia_sup"
 SUPPORT_CONTACT_EN = "https://t.me/Nastia_sup"
 ADMIN_IDS = [8370080332, 8559381302]
 
+DOCS_RU = {
+    "offer": "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-07-01-29",
+    "policy": "https://telegra.ph/Politika-konfidicialnosti-07-01"
+}
+DOCS_EN = {
+    "offer": "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-07-01-29",
+    "policy": "https://telegra.ph/Politika-konfidicialnosti-07-01"
+}
+
 # ==================================================
-# ID КАНАЛОВ (для каждого тарифа)
+# ID КАНАЛОВ (ЗАМЕНИ НА СВОИ!)
 # ==================================================
 CHANNEL_IDS = {
-    "week": "-1004267025056",
-    "month": "-1004478645537",
-    "year": "-1004325704012",
-    "test": "-1003875225035",
+    "week": "-1004267025056",    # ЗАМЕНИ
+    "month": "-1004478645537",   # ЗАМЕНИ
+    "year": "-1004325704012",    # ЗАМЕНИ
+    "test": "-1003875225035",    # ЗАМЕНИ
 }
 
 # ==================================================
@@ -201,9 +211,8 @@ def is_tariff_paid(user_id: int, tariff_key: str):
 # ==================================================
 LANG = {
     "ru": {
-        "start_promo": "🎉 <b>Промокод {code} активирован! Скидка {discount}%!</b>",
-        "start_welcome": "👋 Привет, {name}!\n\n<a href=\"{offer}\">Пользовательское соглашение</a>\n<a href=\"{policy}\">Политика конфиденциальности</a>",
-        "prices_menu": "📋 <b>Прайс</b>\n\nВыберите тариф, чтобы узнать подробности и оформить покупку.",
+        "start_welcome": "💬 Привет, {name}!\n\n📜 <a href=\"{offer}\">Пользовательское соглашение</a>\n🔒 <a href=\"{policy}\">Политика конфиденциальности</a>\n\n🚀 VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ\n\nЗдесь ты получаешь всё в одном месте:\n— Школьницы, вписки, студентки, альтушки\n— Мини Детск, жесть, износы и другие тарифы\n— Ежедневное обновление контента\n— Сообщество, приватный чат для VIP пользователей\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.\n\n<a href=\"https://t.me/+HkgtwLYWumJiMTcx\">📢 НАШИ ОТЗЫВЫ</a>\n👨‍💻 Поддержка 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>",
+        "prices_menu": "📋 <b>Выберите тариф, чтобы узнать подробности и оформить покупку.</b>",
         "subs_menu": "📋 <b>Ваши активные подписки</b>\n\n{list}",
         "no_subs": "⌛️ <b>У Вас нет действующих подписок.</b>\n\nВыберите тариф, чтобы оформить доступ.",
         "tariff_desc": "📋 <b>{name}</b>\n\n💰 Цена: {price_text}\nСрок доступа: {duration}\n\n{desc}",
@@ -236,9 +245,8 @@ LANG = {
         "main_menu_text": "🔥 VIP-ДОСТУП КО ВСЕМ МАТЕРИАЛАМ\n\nЗдесь ты получаешь всё в одном месте:\n— Школьницы, вписки, студентки, альтушки\n— Мини Детск, жесть, износы и другие тарифы\n— Ежедневное обновление контента\n— Сообщество, приватный чат для VIP пользователей\n\nВместо 700 ₽ за один тариф — 449 ₽ в месяц за всё.\n\nВыбери свой тариф ниже 👇"
     },
     "en": {
-        "start_promo": "🎉 <b>Promo code {code} activated! {discount}% discount!</b>",
-        "start_welcome": "👋 Hello, {name}!\n\n<a href=\"{offer}\">Terms of Service</a>\n<a href=\"{policy}\">Privacy Policy</a>",
-        "prices_menu": "📋 <b>Prices</b>\n\nSelect a tariff to view details and make a purchase.",
+        "start_welcome": "💬 Hello, {name}!\n\n📜 <a href=\"{offer}\">Terms of Service</a>\n🔒 <a href=\"{policy}\">Privacy Policy</a>\n\n🚀 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, students, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Community, private chat for VIP users\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.\n\n<a href=\"https://t.me/+HkgtwLYWumJiMTcx\">📢 OUR REVIEWS</a>",
+        "prices_menu": "📋 <b>Select a tariff to view details and make a purchase.</b>",
         "subs_menu": "📋 <b>Your active subscriptions</b>\n\n{list}",
         "no_subs": "⌛️ <b>You don't have any active subscriptions.</b>\n\nSelect a tariff to get access.",
         "tariff_desc": "📋 <b>{name}</b>\n\n💰 Price: {price_text}\nAccess duration: {duration}\n\n{desc}",
@@ -277,8 +285,8 @@ LANG = {
 # ==================================================
 TARIFFS = {
     "week": {
-        "name_ru": "🔥 Неделя — 199 ₽",
-        "name_en": "🔥 Week — 199 ₽",
+        "name_ru": "🚀 VIP на неделю — 199 ₽",
+        "name_en": "🚀 VIP for a week — 199 ₽",
         "price_rub": 199,
         "price_stars": 180,
         "duration_ru": "7 дней",
@@ -287,8 +295,8 @@ TARIFFS = {
         "desc_ru": "🔥 НЕДЕЛЯ ДОСТУПА — 199 ₽\n\nТы получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nЭто выгодно, если:\n— Ты хочешь попробовать, что у меня есть.\n— Тебе нужен доступ на короткий срок.\n\nЦена: 199 ₽"
     },
     "month": {
-        "name_ru": "🔥 Месяц — 449 ₽",
-        "name_en": "🔥 Month — 449 ₽",
+        "name_ru": "👑 VIP на месяц — 449 ₽",
+        "name_en": "👑 VIP for a month — 449 ₽",
         "price_rub": 449,
         "price_stars": 400,
         "duration_ru": "30 дней",
@@ -297,14 +305,14 @@ TARIFFS = {
         "desc_ru": "🔥 МЕСЯЦ ДОСТУПА — 449 ₽\n\nТы получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день.\n— Ты экономишь больше 50% по сравнению с покупкой отдельных тарифов.\n\nЦена: 449 ₽"
     },
     "year": {
-        "name_ru": "🔥 Год — 1 499 ₽",
-        "name_en": "🔥 Year — 1 499 ₽",
-        "price_rub": 1499,
-        "price_stars": 1350,
+        "name_ru": "🔥 VIP на год — 1299 ₽",
+        "name_en": "🔥 VIP for a year — 1299 ₽",
+        "price_rub": 1299,
+        "price_stars": 1170,
         "duration_ru": "365 дней",
         "duration_en": "365 days",
         "category": "main",
-        "desc_ru": "🔥 ГОД ДОСТУПА — 1 499 ₽\n\nТы получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 499 ₽ за целый год — это 125 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений.\n\nЦена: 1 499 ₽"
+        "desc_ru": "🔥 ГОД ДОСТУПА — 1 299 ₽\n\nТы получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Альтушки\n— Мини Детск.\n— Жесть\n— И всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений.\n\nЦена: 1 299 ₽"
     }
 }
 
@@ -503,10 +511,17 @@ async def cmd_start(message: Message, state: FSMContext):
     
     lang = await get_lang(state)
     
-    # НОВОЕ ПРИВЕТСТВИЕ
-    welcome_text = LANG[lang]["main_menu_text"]
+    # ПЕРВОЕ СООБЩЕНИЕ (приветствие + ссылки + отзывы)
+    welcome_text = LANG[lang]["start_welcome"].format(
+        name=first_name,
+        offer=DOCS_RU["offer"],
+        policy=DOCS_RU["policy"]
+    )
+    await message.answer(welcome_text, disable_web_page_preview=True)
     
-    await message.answer(welcome_text, reply_markup=get_tariff_keyboard(lang))
+    # ВТОРОЕ СООБЩЕНИЕ (тарифы)
+    menu_text = LANG[lang]["prices_menu"]
+    await message.answer(menu_text, reply_markup=get_tariff_keyboard(lang))
 
 @dp.message(Command("admin"))
 async def cmd_admin(message: Message):
@@ -784,7 +799,7 @@ async def process_lang_change(callback: CallbackQuery, state: FSMContext):
 @dp.message(F.text.in_([LANG["ru"]["btn_prices"], LANG["en"]["btn_prices"]]))
 async def show_prices(message: Message, state: FSMContext):
     lang = await get_lang(state)
-    await message.answer(LANG[lang]["main_menu_text"], reply_markup=get_tariff_keyboard(lang))
+    await message.answer(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
 
 @dp.message(F.text.in_([LANG["ru"]["btn_subs"], LANG["en"]["btn_subs"]]))
 async def show_subscriptions(message: Message, state: FSMContext):
@@ -814,7 +829,7 @@ async def show_subscriptions(message: Message, state: FSMContext):
 async def back_to_prices(callback: CallbackQuery, state: FSMContext):
     lang = await get_lang(state)
     await callback.answer()
-    await callback.message.edit_text(LANG[lang]["main_menu_text"], reply_markup=get_tariff_keyboard(lang))
+    await callback.message.edit_text(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
 
 @dp.callback_query(F.data.startswith("tariff_"))
 async def show_tariff_details(callback: CallbackQuery, state: FSMContext):
