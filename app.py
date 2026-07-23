@@ -505,23 +505,28 @@ async def cmd_start(message: Message, state: FSMContext):
     
     add_user(user_id, first_name, username)
     
-    lang = await get_lang(state)
+    lang = "ru"
     
+    # ПЕРВОЕ СООБЩЕНИЕ (приветствие)
     welcome_text = LANG[lang]["start_welcome"].format(
         name=first_name,
         offer=DOCS_RU["offer"],
         policy=DOCS_RU["policy"]
     )
     await message.answer(welcome_text, disable_web_page_preview=True, reply_markup=get_main_keyboard(lang))
+    
+    # ВТОРОЕ СООБЩЕНИЕ (ТАРИФЫ)
+    menu_text = LANG[lang]["prices_menu"]
+    await message.answer(menu_text, reply_markup=get_tariff_keyboard(lang))
 
 @dp.message(F.text == "🛒 Прайс")
 async def show_prices(message: Message, state: FSMContext):
-    lang = await get_lang(state)
+    lang = "ru"
     await message.answer(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
 
 @dp.message(F.text == "🛍️ Подписки")
 async def show_subscriptions_button(message: Message, state: FSMContext):
-    lang = await get_lang(state)
+    lang = "ru"
     user_id = message.from_user.id
     
     paid_list = get_paid_tariffs(user_id)
@@ -751,7 +756,7 @@ async def admin_stats(callback: CallbackQuery):
 
 @dp.message(Command("test67"))
 async def cmd_test67(message: Message, state: FSMContext):
-    lang = await get_lang(state)
+    lang = "ru"
     user_id = message.from_user.id
     
     is_paid = is_tariff_paid(user_id, "test")
@@ -781,7 +786,7 @@ async def cmd_test67(message: Message, state: FSMContext):
 
 @dp.callback_query(F.data == "pay_test")
 async def pay_test_tariff(callback: CallbackQuery, state: FSMContext):
-    lang = await get_lang(state)
+    lang = "ru"
     user_id = callback.from_user.id
     
     if is_tariff_paid(user_id, "test"):
@@ -818,7 +823,7 @@ async def process_lang_change(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "back_to_prices")
 async def back_to_prices(callback: CallbackQuery, state: FSMContext):
-    lang = await get_lang(state)
+    lang = "ru"
     await callback.answer()
     await callback.message.edit_text(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
 
@@ -831,7 +836,7 @@ async def show_tariff_details(callback: CallbackQuery, state: FSMContext):
         return
     
     tariff = TARIFFS[tariff_key]
-    lang = await get_lang(state)
+    lang = "ru"
     data = await state.get_data()
     discount = data.get("discount", 0)
     user_id = callback.from_user.id
@@ -876,7 +881,7 @@ async def enter_promo(callback: CallbackQuery, state: FSMContext):
         await callback.answer("❌ Тариф не найден", show_alert=True)
         return
     
-    lang = await get_lang(state)
+    lang = "ru"
     await state.update_data(current_tariff=tariff_key)
     await callback.message.edit_text(
         LANG[lang]["enter_promo"],
@@ -889,7 +894,7 @@ async def process_promo(message: Message, state: FSMContext):
     promo_code = message.text.strip().upper()
     data = await state.get_data()
     tariff_key = data.get("current_tariff")
-    lang = await get_lang(state)
+    lang = "ru"
     
     if not tariff_key or tariff_key not in TARIFFS:
         await state.clear()
@@ -917,7 +922,7 @@ async def cancel_promo(callback: CallbackQuery, state: FSMContext):
         await callback.answer("❌ Тариф не найден", show_alert=True)
         return
     
-    lang = await get_lang(state)
+    lang = "ru"
     await state.clear()
     await callback.message.delete()
     tariff = TARIFFS[tariff_key]
@@ -967,14 +972,14 @@ async def choose_payment(callback: CallbackQuery, state: FSMContext):
     tariff = TARIFFS[tariff_key]
     
     if tariff['price_rub'] == 0:
-        lang = await get_lang(state)
+        lang = "ru"
         user_id = callback.from_user.id
         await callback.message.delete()
         await save_payment_and_send_link(callback.message, tariff_key, lang, user_id)
         await callback.answer("✅ Доступ открыт!")
         return
     
-    lang = await get_lang(state)
+    lang = "ru"
     data = await state.get_data()
     discount = data.get("discount", 0)
     
@@ -1002,14 +1007,14 @@ async def process_rub_payment(callback: CallbackQuery, state: FSMContext):
     tariff = TARIFFS[tariff_key]
     
     if tariff['price_rub'] == 0:
-        lang = await get_lang(state)
+        lang = "ru"
         user_id = callback.from_user.id
         await callback.message.delete()
         await save_payment_and_send_link(callback.message, tariff_key, lang, user_id)
         await callback.answer("✅ Доступ открыт!")
         return
     
-    lang = await get_lang(state)
+    lang = "ru"
     data = await state.get_data()
     discount = data.get("discount", 0)
     
@@ -1037,7 +1042,7 @@ async def process_rub_payment(callback: CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith("payment_success_"))
 async def payment_success(callback: CallbackQuery, state: FSMContext):
     tariff_key = callback.data.replace("payment_success_", "")
-    lang = await get_lang(state)
+    lang = "ru"
     user_id = callback.from_user.id
     
     await callback.message.delete()
@@ -1055,14 +1060,14 @@ async def process_stars_payment(callback: CallbackQuery, state: FSMContext):
     tariff = TARIFFS[tariff_key]
     
     if tariff['price_rub'] == 0:
-        lang = await get_lang(state)
+        lang = "ru"
         user_id = callback.from_user.id
         await callback.message.delete()
         await save_payment_and_send_link(callback.message, tariff_key, lang, user_id)
         await callback.answer("✅ Доступ открыт!")
         return
     
-    lang = await get_lang(state)
+    lang = "ru"
     data = await state.get_data()
     discount = data.get("discount", 0)
     name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
