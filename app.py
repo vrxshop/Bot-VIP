@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timedelta
 from flask import Flask
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, BotCommand
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import CommandStart, Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -19,11 +19,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
 import time
 
 # ==================================================
-# FLASK ДЛЯ RENDER
+# FLASK
 # ==================================================
 flask_app = Flask(__name__)
 
@@ -40,11 +39,7 @@ def health():
 # ==================================================
 SUPABASE_URL = "postgresql://postgres.hbjcrkcvaiuktkdrpema:gPldQXhIjtSeXTN4@aws-0-eu-north-1.pooler.supabase.com:6543/postgres"
 
-engine = create_engine(
-    SUPABASE_URL,
-    echo=False,
-    pool_pre_ping=True
-)
+engine = create_engine(SUPABASE_URL, echo=False, pool_pre_ping=True)
 
 def get_all_users():
     try:
@@ -81,11 +76,7 @@ def add_user_discount(user_id: int, discount_code: str, discount_percent: int):
     try:
         with engine.connect() as conn:
             conn.execute(
-                text("""
-                    INSERT INTO user_discounts (user_id, discount_code, discount_percent)
-                    VALUES (:id, :code, :percent)
-                    ON CONFLICT (user_id, discount_code) DO NOTHING
-                """),
+                text("INSERT INTO user_discounts (user_id, discount_code, discount_percent) VALUES (:id, :code, :percent) ON CONFLICT (user_id, discount_code) DO NOTHING"),
                 {"id": user_id, "code": discount_code, "percent": discount_percent}
             )
             conn.commit()
@@ -97,10 +88,7 @@ def add_user_discount(user_id: int, discount_code: str, discount_percent: int):
 def get_user_discounts(user_id: int):
     try:
         with engine.connect() as conn:
-            result = conn.execute(
-                text("SELECT discount_code, discount_percent, used FROM user_discounts WHERE user_id = :id AND used = 0"),
-                {"id": user_id}
-            )
+            result = conn.execute(text("SELECT discount_code, discount_percent, used FROM user_discounts WHERE user_id = :id AND used = 0"), {"id": user_id})
             return result.fetchall()
     except Exception as e:
         logging.error(f"Ошибка получения скидок: {e}")
@@ -109,10 +97,7 @@ def get_user_discounts(user_id: int):
 def mark_discount_used(user_id: int, discount_code: str):
     try:
         with engine.connect() as conn:
-            conn.execute(
-                text("UPDATE user_discounts SET used = 1 WHERE user_id = :id AND discount_code = :code"),
-                {"id": user_id, "code": discount_code}
-            )
+            conn.execute(text("UPDATE user_discounts SET used = 1 WHERE user_id = :id AND discount_code = :code"), {"id": user_id, "code": discount_code})
             conn.commit()
         return True
     except Exception as e:
@@ -120,98 +105,63 @@ def mark_discount_used(user_id: int, discount_code: str):
         return False
 
 # ==================================================
-# ПРОМОКОДЫ В ОПЕРАТИВНОЙ ПАМЯТИ
+# ПРОМОКОДЫ В ПАМЯТИ
 # ==================================================
-# Словарь для хранения промокодов
-# { "CODE": {"discount": 60, "expires_at": timestamp} }
 active_promocodes = {}
 
 def create_promocode(code: str, discount: int, expires_minutes: int = None):
-    """Создает промокод в памяти"""
     code = code.upper()
     expires_at = None
     if expires_minutes:
         expires_at = time.time() + (expires_minutes * 60)
-    
-    active_promocodes[code] = {
-        "discount": discount,
-        "expires_at": expires_at
-    }
-    logging.info(f"✅ Создан промокод {code} (скидка {discount}%, истекает через {expires_minutes} мин)")
+    active_promocodes[code] = {"discount": discount, "expires_at": expires_at}
+    logging.info(f"✅ Создан промокод {code} (скидка {discount}%)")
     return True
 
 def delete_promocode(code: str):
-    """Удаляет промокод"""
     code = code.upper()
     if code in active_promocodes:
         del active_promocodes[code]
-        logging.info(f"✅ Удален промокод {code}")
         return True
     return False
 
 def check_promocode(code: str):
-    """Проверяет промокод и возвращает скидку или None"""
     code = code.upper()
-    
     if code not in active_promocodes:
         return None
-    
     promo = active_promocodes[code]
-    
-    # Проверяем срок действия
-    if promo["expires_at"]:
-        if time.time() > promo["expires_at"]:
-            # Промокод просрочен - удаляем
-            del active_promocodes[code]
-            logging.info(f"⏰ Промокод {code} просрочен и удален")
-            return None
-    
+    if promo["expires_at"] and time.time() > promo["expires_at"]:
+        del active_promocodes[code]
+        return None
     return promo["discount"]
 
 def get_all_promocodes():
-    """Возвращает список всех активных промокодов"""
-    # Удаляем просроченные
     expired = []
     for code, data in active_promocodes.items():
         if data["expires_at"] and time.time() > data["expires_at"]:
             expired.append(code)
-    
     for code in expired:
         del active_promocodes[code]
-        logging.info(f"⏰ Промокод {code} просрочен и удален")
-    
     return list(active_promocodes.items())
 
 def cleanup_expired_promocodes():
-    """Фоновая очистка просроченных промокодов"""
     while True:
-        time.sleep(60)  # Проверяем каждую минуту
-        get_all_promocodes()  # Эта функция сама удаляет просроченные
+        time.sleep(60)
+        get_all_promocodes()
 
 # ==================================================
-# КОНФИГУРАЦИЯ
+# КОНФИГ
 # ==================================================
 ROLLYPAY_API_KEY = "z39_r_COJdiB7PWeddOYvzT2rx4cjIbS1m4JJcgBTi0"
 ROLLYPAY_CALLBACK_URL = "https://t-bot-18jz.onrender.com/webhook"
-
 BOT_TOKEN = "8405743009:AAFmmRNDGWGDnxQbIDPVtiAprSnh0aq9g0U"
 PROJECT_NAME = "VIP"
 SUPPORT_CONTACT_RU = "https://t.me/Nastia_sup"
-SUPPORT_CONTACT_EN = "https://t.me/Nastia_sup"
 ADMIN_IDS = [8370080332, 8559381302]
 
-DOCS_RU = {
-    "offer": "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-07-01-29",
-    "policy": "https://telegra.ph/Politika-konfidicialnosti-07-01"
-}
-DOCS_EN = {
-    "offer": "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-07-01-29",
-    "policy": "https://telegra.ph/Politika-konfidicialnosti-07-01"
-}
+DOCS_RU = {"offer": "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-07-01-29", "policy": "https://telegra.ph/Politika-konfidicialnosti-07-01"}
+DOCS_EN = {"offer": "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-07-01-29", "policy": "https://telegra.ph/Politika-konfidicialnosti-07-01"}
 
-# ==================================================
-# ID КАНАЛОВ
-# ==================================================
 CHANNEL_IDS = {
     "week": "-1004267025056",
     "month": "-1004478645537",
@@ -219,25 +169,14 @@ CHANNEL_IDS = {
     "test": "-1003875225035",
 }
 
-# ==================================================
-# БАЗА ДАННЫХ (SQLite)
-# ==================================================
 DB_PATH = "users.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS paid_tariffs (
-            user_id INTEGER,
-            tariff_key TEXT,
-            paid_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, tariff_key)
-        )
-    ''')
+    cursor.execute('CREATE TABLE IF NOT EXISTS paid_tariffs (user_id INTEGER, tariff_key TEXT, paid_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, tariff_key))')
     conn.commit()
     conn.close()
-    logging.info("✅ База данных инициализирована")
 
 def add_paid_tariff(user_id: int, tariff_key: str):
     try:
@@ -288,11 +227,10 @@ LANG = {
         "tariff_desc_paid": "📋 {name}\n\n💰 Цена: {price_text} RUB\n\n{desc}\n\n🔐 Будет получен доступ на срок {duration} к:\n• Shkod VIP👑 (внешняя ссылка)\n\n✅ <b>ТАРИФ ОПЛАЧЕН</b>\n\n🔑 Для получения ссылки напишите в поддержку @Nastia_sup",
         "enter_promo": "🏷️ <b>Введите промокод</b>\n\nНапишите промокод в чат.",
         "promo_success": "✅ Промокод <b>{code}</b> активирован! Скидка {discount}% 🔥\n\n📋 {name}\n💰 Цена: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nВыберите валюту для оплаты.",
-        "promo_fail": "❌ Промокод не найден или истек. Попробуйте еще раз.",
+        "promo_fail": "❌ Промокод не найден или истек.",
         "choose_pay": "📋 {name}\nСрок доступа: {duration}\n💰 Цена: {price_text}\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\nВыберите валюту для оплаты",
         "pay_rub": "📋 {name}\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: RollyPay\n\n💰 Итоговая стоимость: {final} RUB\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\n✅ Счет на оплату сформирован!",
         "pay_stars": "📋 {name}\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: ЗА ЗВЕЗДЫ ⭐\n\n💰 Итоговая стоимость: {final} STARS\n\nℹ️ <b>Информация по оплате</b>\nПодарить звезды или подарки на этот аккаунт - <a href=\"{support}\">@Nastia_sup</a>\n\nкурс:\n1 ⭐ - 1 рубль",
-        "refresh_link": "♻️ <i>Ссылка обновлена!</i>",
         "btn_prices": "🛒 Прайс",
         "btn_subs": "🛍️ Подписки",
         "btn_promo": "🏷️ Ввести промокод",
@@ -304,10 +242,8 @@ LANG = {
         "btn_pay_stars_disc": "{price} STARS 🏷️(-{disc}%)",
         "btn_goto_pay": "✅ ПЕРЕЙТИ К ОПЛАТЕ",
         "btn_new_link": "🔗 Получить новую ссылку",
-        "btn_to_prices": "✅ КУПИТЬ ПОДПИСКУ",
         "btn_cancel": "🚫 ОТМЕНА",
         "btn_stars_go": "⭐ Stars со скидкой до 42%",
-        "btn_lang": "🇷🇺 Язык",
         "payment_success": "✅ <b>Оплата прошла!</b>\n\n🔗 <b>Ваша ссылка доступа (действует 30 секунд):</b>\n{link}\n\n⚠️ <b>Внимание!</b> Ссылка действительна только 30 секунд!\n\nСпасибо за покупку! ❤️",
         "payment_success_test": "✅ <b>Доступ открыт!</b>\n\n🔗 <b>Ваша ссылка доступа (действует 30 секунд):</b>\n{link}\n\n⚠️ <b>Внимание!</b> Ссылка действительна только 30 секунд!\n\nСпасибо за использование бота! ❤️",
         "subs_list_item": "• {name} (оплачен ✅)",
@@ -322,52 +258,6 @@ LANG = {
         "btn_create_promo": "➕ Создать промокод",
         "btn_delete_promo": "🗑️ Удалить промокод",
         "btn_list_promos": "📋 Список промокодов",
-        "btn_back_admin": "👈 Назад в админку"
-    },
-    "en": {
-        "start_welcome": "💬 Hello, {name}!\n\n📜 <a href=\"{offer}\">Terms of Service</a>\n🔒 <a href=\"{policy}\">Privacy Policy</a>\n\n🚀 VIP-ACCESS TO ALL MATERIALS\n\nHere you get everything in one place:\n— Schoolgirls, parties, stashers, alt girls\n— Mini Child, extreme, rapes and other tariffs\n— Daily content updates\n— Private chat for VIP users\n— I buy content in other bots and merge it into VIP\n— Support 24/7 — <a href=\"https://t.me/Nastia_sup\">@Nastia_sup</a>\n\nInstead of 700 ₽ for one tariff — 449 ₽ per month for everything.",
-        "prices_menu": "📋 <b>Prices</b>\n\nSelect a tariff to view details and make a purchase.",
-        "subs_menu": "📋 <b>Your subscriptions</b>\n\n{list}",
-        "no_subs": "⌛️ <b>You don't have any active subscriptions.</b>\n\nSelect a tariff to get access.",
-        "tariff_desc": "📋 {name}\n\n💰 Price: {price_text} RUB\n\n{desc}\n\n🔐 You will get access for {duration} to:\n• Shkod VIP👑 (external link)",
-        "tariff_desc_paid": "📋 {name}\n\n💰 Price: {price_text} RUB\n\n{desc}\n\n🔐 You will get access for {duration} to:\n• Shkod VIP👑 (external link)\n\n✅ <b>TARIFF PAID</b>\n\n🔑 To get the link contact support @Nastia_sup",
-        "enter_promo": "🏷️ <b>Enter promo code</b>\n\nType the promo code in the chat.",
-        "promo_success": "✅ Promo code <b>{code}</b> activated! {discount}% discount 🔥\n\n📋 {name}\n💰 Price: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nChoose a currency for payment.",
-        "promo_fail": "❌ Promo code not found or expired. Try again.",
-        "choose_pay": "📋 {name}\nAccess duration: {duration}\n💰 Price: {price_text}\n\n🔒 You will get access to:\n• {project} (external link)\n\nChoose a currency for payment",
-        "pay_rub": "📋 {name}\nAccess duration: {duration}\n{price_line}💳 Payment method: RollyPay\n\n💰 Total cost: {final} RUB\n\n🔒 You will get access to:\n• {project} (external link)\n\n✅ Invoice created!",
-        "pay_stars": "📋 {name}\nAccess duration: {duration}\n{price_line}💳 Payment method: FOR STARS ⭐\n\n💰 Total cost: {final} STARS\n\nℹ️ <b>Payment info</b>\nSend stars or gifts to this account - <a href=\"{support}\">@Nastia_sup</a>\n\nRate:\n1 ⭐ - 1 ruble",
-        "refresh_link": "♻️ <i>Link refreshed!</i>",
-        "btn_prices": "🛒 Prices",
-        "btn_subs": "🛍️ Subscriptions",
-        "btn_promo": "🏷️ Enter promo code",
-        "btn_pay": "💳 Payment methods",
-        "btn_back": "👈 Back",
-        "btn_pay_rub": "{price} RUB",
-        "btn_pay_rub_disc": "{price} RUB 🏷️(-{disc}%)",
-        "btn_pay_stars": "{price} STARS",
-        "btn_pay_stars_disc": "{price} STARS 🏷️(-{disc}%)",
-        "btn_goto_pay": "✅ GO TO PAYMENT",
-        "btn_new_link": "🔗 Get new link",
-        "btn_to_prices": "✅ BUY SUBSCRIPTION",
-        "btn_cancel": "🚫 CANCEL",
-        "btn_stars_go": "⭐ Stars up to 42% off",
-        "btn_lang": "🇬🇧 Language",
-        "payment_success": "✅ <b>Payment successful!</b>\n\n🔗 <b>Your access link (valid 30 seconds):</b>\n{link}\n\n⚠️ <b>Warning!</b> The link is valid only 30 seconds!\n\nThank you for your purchase! ❤️",
-        "payment_success_test": "✅ <b>Access granted!</b>\n\n🔗 <b>Your access link (valid 30 seconds):</b>\n{link}\n\n⚠️ <b>Warning!</b> The link is valid only 30 seconds!\n\nThank you for using the bot! ❤️",
-        "subs_list_item": "• {name} (paid ✅)",
-        "admin_panel": "⚙️ <b>Admin Panel</b>\n\n👥 Total users: {users}\n🎫 Active promocodes: {promos}\n\nChoose action:",
-        "promo_created": "✅ Promo code <b>{code}</b> created!\n\n📊 Discount: {discount}%\n⏰ Valid for: {time}\n\nPromo code is now active!",
-        "promo_deleted": "✅ Promo code <b>{code}</b> deleted!",
-        "promo_list": "📋 <b>Active promocodes:</b>\n\n{promo_list}\n\nTotal: {count}",
-        "no_promos": "📭 No active promocodes",
-        "enter_code": "📝 <b>Enter promo code name</b>\n\n(only letters and numbers, no spaces)\n\n🔄 To cancel, send /cancel",
-        "enter_discount": "📝 <b>Enter discount percentage</b>\n\n(number from 1 to 100)\n\n🔄 To cancel, send /cancel",
-        "enter_expires": "⏰ <b>Enter promo code duration</b>\n\nEnter in minutes (e.g.: 5, 30, 60)\n\nIf no limit needed, enter 0\n\n🔄 To cancel, send /cancel",
-        "btn_create_promo": "➕ Create promocode",
-        "btn_delete_promo": "🗑️ Delete promocode",
-        "btn_list_promos": "📋 List promocodes",
-        "btn_back_admin": "👈 Back to admin"
     }
 }
 
@@ -382,8 +272,7 @@ TARIFFS = {
         "price_stars": 180,
         "duration_ru": "7 дней",
         "duration_en": "7 days",
-        "category": "main",
-        "desc_ru": "Ты получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nЭто выгодно, если:\n— Ты хочешь попробовать, что у меня есть.\n— Тебе нужен доступ на короткий срок."
+        "desc_ru": "Ты получаешь доступ ко всем материалам на 7 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно"
     },
     "month": {
         "name_ru": "👑 VIP на месяц — 449 ₽",
@@ -392,8 +281,7 @@ TARIFFS = {
         "price_stars": 400,
         "duration_ru": "30 дней",
         "duration_en": "30 days",
-        "category": "main",
-        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день.\n— Ты экономишь больше 50% по сравнению с покупкой отдельных тарифов."
+        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 30 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Вместо 700 ₽ за один тариф — 449 ₽ за всё.\n— Контент обновляется каждый день."
     },
     "year": {
         "name_ru": "🔥 VIP на год — 1299 ₽",
@@ -402,8 +290,7 @@ TARIFFS = {
         "price_stars": 1170,
         "duration_ru": "365 дней",
         "duration_en": "365 days",
-        "category": "main",
-        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽.\n— Ты получаешь доступ ко всем моим материалам без ограничений."
+        "desc_ru": "Ты получаешь доступ ко ВСЕМ материалам на 365 дней:\n— Школьницы\n— Вписки\n— Студентки\n— Закладчицы\n— Альтушки\n— Мини Детск.\n— Жесть\n— И другие, и всё, что я добавляю ежедневно\n\nПочему это выгодно:\n— Всего 1 299 ₽ за целый год — это 108 ₽ в месяц!\n— Это в 3 раза дешевле, чем покупать месяц за 449 ₽."
     }
 }
 
@@ -418,7 +305,7 @@ TEST_TARIFF = {
 }
 
 # ==================================================
-# ИНИЦИАЛИЗАЦИЯ
+# ИНИЦИАЛИЗАЦИЯ БОТА
 # ==================================================
 storage = MemoryStorage()
 session = AiohttpSession()
@@ -434,10 +321,9 @@ class PromoStates(StatesGroup):
 
 class MailingStates(StatesGroup):
     waiting_for_content = State()
-    waiting_for_mail_type = State()
 
 # ==================================================
-# ФУНКЦИИ
+# ФУНКЦИИ ДЛЯ БОТА
 # ==================================================
 async def create_rollypay_payment(amount: int, user_id: int, tariff_key: str, tariff_name: str) -> str:
     discounts = get_user_discounts(user_id)
@@ -477,13 +363,7 @@ async def create_rollypay_payment(amount: int, user_id: int, tariff_key: str, ta
                 data = await response.json()
                 return data.get("pay_url")
             else:
-                error_text = await response.text()
-                logging.error(f"Ошибка RollyPay: {response.status} - {error_text}")
                 return None
-
-async def get_lang(state: FSMContext):
-    data = await state.get_data()
-    return data.get("lang", "ru")
 
 async def create_one_time_link(chat_id: str) -> str:
     try:
@@ -536,11 +416,10 @@ def get_tariff_keyboard(lang):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_test_tariff_keyboard(lang):
-    buttons = [
+    return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💳 ОПЛАТИТЬ", callback_data="pay_test")],
         [InlineKeyboardButton(text="👈 НАЗАД", callback_data="back_to_prices")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    ])
 
 def get_tariff_details_keyboard(tariff_key, lang, user_id):
     buttons = []
@@ -616,12 +495,12 @@ async def cmd_start(message: Message, state: FSMContext):
     await message.answer(menu_text, reply_markup=get_tariff_keyboard(lang))
 
 @dp.message(F.text == "🛒 Прайс")
-async def show_prices(message: Message, state: FSMContext):
+async def show_prices(message: Message):
     lang = "ru"
     await message.answer(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
 
 @dp.message(F.text == "🛍️ Подписки")
-async def show_subscriptions_button(message: Message, state: FSMContext):
+async def show_subscriptions_button(message: Message):
     lang = "ru"
     user_id = message.from_user.id
     
@@ -683,12 +562,11 @@ async def process_promo_code_name(message: Message, state: FSMContext):
     code = message.text.strip().upper()
     
     if not re.match(r'^[A-Z0-9]+$', code):
-        await message.answer("❌ Промокод может содержать только буквы и цифры! Попробуйте еще раз.")
+        await message.answer("❌ Промокод может содержать только буквы и цифры!")
         return
     
-    # Проверяем, не существует ли уже такой промокод
     if check_promocode(code) is not None:
-        await message.answer("❌ Такой промокод уже существует! Придумайте другой.")
+        await message.answer("❌ Такой промокод уже существует!")
         return
     
     await state.update_data(promo_code=code)
@@ -737,11 +615,7 @@ async def process_promo_expires(message: Message, state: FSMContext):
     
     if success:
         time_text = f"{expires_minutes} минут" if expires_minutes else "Бессрочно"
-        text = LANG["ru"]["promo_created"].format(
-            code=code,
-            discount=discount,
-            time=time_text
-        )
+        text = LANG["ru"]["promo_created"].format(code=code, discount=discount, time=time_text)
         await message.answer(text)
         
         user_count = get_user_count()
@@ -761,12 +635,16 @@ async def admin_delete_promo_start(callback: CallbackQuery):
     
     promos = get_all_promocodes()
     if not promos:
-        await callback.answer("📭 Нет активных промокодов для удаления!", show_alert=True)
+        await callback.answer("📭 Нет активных промокодов!", show_alert=True)
         return
     
     buttons = []
     for code, data in promos:
-        expires_text = f" (осталось {int((data['expires_at'] - time.time()) / 60)} мин)" if data['expires_at'] else " (бессрочно)"
+        if data['expires_at']:
+            remaining = int((data['expires_at'] - time.time()) / 60)
+            expires_text = f" (осталось {remaining} мин)"
+        else:
+            expires_text = " (бессрочно)"
         buttons.append([InlineKeyboardButton(
             text=f"{code} - {data['discount']}%{expires_text}",
             callback_data=f"delete_promo_{code}"
@@ -792,8 +670,7 @@ async def process_delete_promo(callback: CallbackQuery):
     
     if success:
         await callback.answer(f"✅ Промокод {code} удален!", show_alert=True)
-        text = LANG["ru"]["promo_deleted"].format(code=code)
-        await callback.message.edit_text(text)
+        await callback.message.edit_text(LANG["ru"]["promo_deleted"].format(code=code))
         
         user_count = get_user_count()
         promo_count = len(get_all_promocodes())
@@ -889,8 +766,6 @@ async def admin_mailing_start(callback: CallbackQuery, state: FSMContext):
         "📨 <b>Рассылка</b>\n\n"
         "Отправь мне сообщение (текст, фото, видео, GIF, документ), "
         "и я разошлю его ВСЕМ пользователям бота.\n\n"
-        "⚠️ <b>Внимание:</b> Рассылка пойдёт всем пользователям, которые "
-        "когда-либо взаимодействовали с ботом.\n\n"
         "🔄 Чтобы отменить, отправь /cancel"
     )
     await state.set_state(MailingStates.waiting_for_content)
@@ -943,22 +818,22 @@ async def process_mailing_content(message: Message, state: FSMContext):
     )
     await state.clear()
 
-# --- ТАРИФЫ И ОПЛАТА ---
+# --- ТАРИФЫ ---
 
 @dp.message(Command("test67"))
-async def cmd_test67(message: Message, state: FSMContext):
+async def cmd_test67(message: Message):
     lang = "ru"
     user_id = message.from_user.id
     
     is_paid = is_tariff_paid(user_id, "test")
     
     if is_paid:
-        text = f"""📋 <b>{TEST_TARIFF['name_ru'] if lang == 'ru' else TEST_TARIFF['name_en']}</b>
+        text = f"""📋 <b>{TEST_TARIFF['name_ru']}</b>
 
 💰 Цена: БЕСПЛАТНО 🎉
-Срок доступа: {TEST_TARIFF['duration_ru'] if lang == 'ru' else TEST_TARIFF['duration_en']}
+Срок доступа: {TEST_TARIFF['duration_ru']}
 
-{TEST_TARIFF['desc_ru'] if lang == 'ru' else TEST_TARIFF['desc_en']}
+{TEST_TARIFF['desc_ru']}
 
 ✅ <b>ТАРИФ ОПЛАЧЕН</b>
 
@@ -966,17 +841,17 @@ async def cmd_test67(message: Message, state: FSMContext):
         await message.answer(text)
         return
     
-    text = f"""📋 <b>{TEST_TARIFF['name_ru'] if lang == 'ru' else TEST_TARIFF['name_en']}</b>
+    text = f"""📋 <b>{TEST_TARIFF['name_ru']}</b>
 
 💰 Цена: БЕСПЛАТНО 🎉
-Срок доступа: {TEST_TARIFF['duration_ru'] if lang == 'ru' else TEST_TARIFF['duration_en']}
+Срок доступа: {TEST_TARIFF['duration_ru']}
 
-{TEST_TARIFF['desc_ru'] if lang == 'ru' else TEST_TARIFF['desc_en']}"""
+{TEST_TARIFF['desc_ru']}"""
     
     await message.answer(text, reply_markup=get_test_tariff_keyboard(lang))
 
 @dp.callback_query(F.data == "pay_test")
-async def pay_test_tariff(callback: CallbackQuery, state: FSMContext):
+async def pay_test_tariff(callback: CallbackQuery):
     lang = "ru"
     user_id = callback.from_user.id
     
@@ -989,7 +864,7 @@ async def pay_test_tariff(callback: CallbackQuery, state: FSMContext):
     await callback.answer("✅ Доступ открыт!")
 
 @dp.callback_query(F.data == "back_to_prices")
-async def back_to_prices(callback: CallbackQuery, state: FSMContext):
+async def back_to_prices(callback: CallbackQuery):
     lang = "ru"
     await callback.answer()
     await callback.message.edit_text(LANG[lang]["prices_menu"], reply_markup=get_tariff_keyboard(lang))
@@ -1008,9 +883,9 @@ async def show_tariff_details(callback: CallbackQuery, state: FSMContext):
     discount = data.get("discount", 0)
     user_id = callback.from_user.id
     
-    name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
-    duration = tariff['duration_ru'] if lang == "ru" else tariff['duration_en']
-    desc = tariff['desc_ru'] if lang == "ru" else tariff['desc_en']
+    name = tariff['name_ru']
+    duration = tariff['duration_ru']
+    desc = tariff['desc_ru']
     
     if tariff['price_rub'] == 0:
         price_text = "БЕСПЛАТНО 🎉"
@@ -1073,7 +948,7 @@ async def process_promo(message: Message, state: FSMContext):
         add_user_discount(message.from_user.id, promo_code, discount)
         
         tariff = TARIFFS[tariff_key]
-        name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
+        name = tariff['name_ru']
         new_rub = int(tariff['price_rub'] * (1 - discount / 100))
         
         text = LANG[lang]["promo_success"].format(
@@ -1104,9 +979,9 @@ async def cancel_promo(callback: CallbackQuery, state: FSMContext):
     discount = data.get("discount", 0)
     user_id = callback.from_user.id
     
-    name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
-    duration = tariff['duration_ru'] if lang == "ru" else tariff['duration_en']
-    desc = tariff['desc_ru'] if lang == "ru" else tariff['desc_en']
+    name = tariff['name_ru']
+    duration = tariff['duration_ru']
+    desc = tariff['desc_ru']
 
     if tariff['price_rub'] == 0:
         price_text = "БЕСПЛАТНО 🎉"
@@ -1157,8 +1032,8 @@ async def choose_payment(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     discount = data.get("discount", 0)
     
-    name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
-    duration = tariff['duration_ru'] if lang == "ru" else tariff['duration_en']
+    name = tariff['name_ru']
+    duration = tariff['duration_ru']
     
     if discount > 0:
         show_rub = int(tariff['price_rub'] * (1 - discount / 100))
@@ -1200,8 +1075,8 @@ async def process_rub_payment(callback: CallbackQuery, state: FSMContext):
     payment_url = await create_rollypay_payment(final_price, user_id, tariff_key, tariff['name_ru'])
     
     if payment_url:
-        name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
-        duration = tariff['duration_ru'] if lang == "ru" else tariff['duration_en']
+        name = tariff['name_ru']
+        duration = tariff['duration_ru']
         
         if discount > 0:
             price_line = f"💰 Цена: <s>{tariff['price_rub']} RUB</s> → {final_price} RUB (-{discount}%)\n"
@@ -1211,17 +1086,7 @@ async def process_rub_payment(callback: CallbackQuery, state: FSMContext):
         text = LANG[lang]["pay_rub"].format(name=name, duration=duration, price_line=price_line, final=final_price, project=PROJECT_NAME)
         await callback.message.edit_text(text, reply_markup=get_payment_action_keyboard(payment_url, tariff_key, lang))
     else:
-        await callback.answer("❌ Ошибка создания платежа. Попробуйте позже или выберите другой способ оплаты.", show_alert=True)
-
-@dp.callback_query(F.data.startswith("payment_success_"))
-async def payment_success(callback: CallbackQuery, state: FSMContext):
-    tariff_key = callback.data.replace("payment_success_", "")
-    lang = "ru"
-    user_id = callback.from_user.id
-    
-    await callback.message.delete()
-    await save_payment_and_send_link(callback.message, tariff_key, lang, user_id)
-    await callback.answer("✅ Оплата успешно завершена!")
+        await callback.answer("❌ Ошибка создания платежа. Попробуйте позже.", show_alert=True)
 
 @dp.callback_query(F.data.startswith("pay_stars_"))
 async def process_stars_payment(callback: CallbackQuery, state: FSMContext):
@@ -1244,8 +1109,8 @@ async def process_stars_payment(callback: CallbackQuery, state: FSMContext):
     lang = "ru"
     data = await state.get_data()
     discount = data.get("discount", 0)
-    name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
-    duration = tariff['duration_ru'] if lang == "ru" else tariff['duration_en']
+    name = tariff['name_ru']
+    duration = tariff['duration_ru']
     
     final_price = int(tariff['price_stars'] * (1 - discount / 100))
     demo_stars_url = f"https://t.me/TweetlyStarsBot?start=demo_stars_{tariff_key}"
@@ -1255,7 +1120,7 @@ async def process_stars_payment(callback: CallbackQuery, state: FSMContext):
     else:
         price_line = f"💰 Цена: {final_price} STARS\n"
     
-    support = SUPPORT_CONTACT_RU if lang == "ru" else SUPPORT_CONTACT_EN
+    support = SUPPORT_CONTACT_RU
     text = LANG[lang]["pay_stars"].format(name=name, duration=duration, price_line=price_line, final=final_price, project=PROJECT_NAME, support=support)
     
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -1265,7 +1130,7 @@ async def process_stars_payment(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text, reply_markup=kb)
 
 @dp.callback_query(F.data.startswith("refresh_link_"))
-async def refresh_link(callback: CallbackQuery, state: FSMContext):
+async def refresh_link(callback: CallbackQuery):
     tariff_key = callback.data.replace("refresh_link_", "")
     
     if tariff_key not in TARIFFS:
@@ -1288,7 +1153,7 @@ async def refresh_link(callback: CallbackQuery, state: FSMContext):
         )
         await callback.answer("✅ Новая ссылка сгенерирована!", show_alert=True)
     else:
-        await callback.answer("❌ Ошибка создания новой ссылки. Попробуйте позже.", show_alert=True)
+        await callback.answer("❌ Ошибка создания новой ссылки.", show_alert=True)
 
 @dp.message(Command("reset"))
 async def cmd_reset(message: Message):
@@ -1299,7 +1164,7 @@ async def cmd_reset(message: Message):
     await message.answer("✅ Бот сброшен!")
 
 @dp.message(Command("language"))
-async def cmd_language(message: Message, state: FSMContext):
+async def cmd_language(message: Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="set_lang_ru")],
         [InlineKeyboardButton(text="🇬🇧 English", callback_data="set_lang_en")]
@@ -1326,15 +1191,13 @@ async def main():
     logging.basicConfig(level=logging.INFO)
     init_db()
     
-    # Запускаем фоновую очистку промокодов
     cleanup_thread = threading.Thread(target=cleanup_expired_promocodes, daemon=True)
     cleanup_thread.start()
     
     print("=" * 60)
     print("🚀 БОТ ЗАПУЩЕН!")
     print("📦 База данных: Supabase + SQLite")
-    print("👥 Пользователи сохраняются в Supabase")
-    print("🎫 Промокоды хранятся в ОЗУ (автоочистка каждую минуту)")
+    print("🎫 Промокоды в ОЗУ (автоочистка каждую минуту)")
     print("=" * 60)
     
     await bot.delete_webhook(drop_pending_updates=True)
