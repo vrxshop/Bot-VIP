@@ -123,23 +123,234 @@ def mark_discount_used(user_id: int, discount_code: str):
 # ==================================================
 # НОВАЯ ТАБЛИЦА ДЛЯ ПРОМОКОДОВ
 # ==================================================
+# ==================================================
+# НОВАЯ ТАБЛИЦА ДЛЯ ПРОМОКОДОВ (С ДИАГНОСТИКОЙ)
+# ==================================================
 def init_promo_table():
     try:
         with engine.connect() as conn:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS promo_codes (
-                    code TEXT PRIMARY KEY,
-                    discount_percent INTEGER NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    expires_at TIMESTAMP,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_by INTEGER
+            # Сначала проверим, существует ли таблица
+            check_result = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'promo_codes'
                 )
             """))
-            conn.commit()
-        logging.info("✅ Таблица промокодов создана/проверена")
+            exists = check_result.fetchone()[0]
+            
+            if not exists:
+                # Создаем таблицу
+                conn.execute(text("""
+                    CREATE TABLE promo_codes (
+                        code TEXT PRIMARY KEY,
+                        discount_percent INTEGER NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TIMESTAMP,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_by INTEGER
+                    )
+                """))
+                conn.commit()
+                logging.info("✅ Таблица promo_codes создана")
+            else:
+                # Проверяем структуру таблицы
+                logging.info("✅ Таблица promo_codes уже существует")
+                
+                # Добавляем колонку is_active если её нет
+                try:
+                    conn.execute(text("ALTER TABLE promo_codes ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+                    conn.commit()
+                    logging.info("✅ Добавлена колонка is_active")
+                except Exception:
+                    pass  # Колонка уже существует
+                
+                # Добавляем колонку created_by если её нет
+                try:
+                    conn.execute(text("ALTER TABLE promo_codes ADD COLUMN created_by INTEGER"))
+                    conn.commit()
+                    logging.info("✅ Добавлена колонка created_by")
+                except Exception:
+                    pass  # Колонка уже существует
     except Exception as e:
-        logging.error(f"Ошибка создания таблицы промокодов: {e}")
+        logging.error(f"❌ Ошибка инициализации таблицы промокодов: {e}")
+
+def add_promo_code(code: str, discount: int, expires_minutes: int = None, created_by: int = None):
+    try:
+        expires_at = None
+        if expires_minutes:
+            expires_at = datetime.now() + timedelta(minutes=expires_minutes)
+        
+        with engine.connect() as conn:
+            # Проверяем, существует ли уже такой код
+            check = conn.execute(
+                text("SELECT code FROM promo_codes WHERE code = :code"),
+                {"code": code.upper()}
+            ).fetchone()
+            
+            if check:
+                logging.error(f"❌ Промокод {code} уже существует")
+                return False
+            
+            # Вставляем новый
+            conn.execute(
+                text("""
+                    INSERT INTO promo_codes (code, discount_percent, expires_at, created_by)
+                    VALUES (:code, :discount, :expires_at, :created_by)
+                """),
+                {"code": code.upper(), "discount": discount, "expires_at": expires_at, "created_by": created_by}
+            )
+            conn.commit()
+            logging.info(f"✅ Промокод {code} создан (скидка {discount}%)")
+        return True
+    except Exception as e:
+        logging.error(f"❌ Ошибка добавления промокода: {e}")
+        return False
+
+def delete_promo_code(code: str):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("DELETE FROM promo_codes WHERE code = :code"),
+                {"code": code.upper()}
+            )
+            conn.commit()
+            deleted = result.rowcount > 0
+            if deleted:
+                logging.info(f"✅ Промокод {code} удален")
+            else:
+                logging.warning(f"⚠️ Промокод {code} не найден")
+            return deleted
+    except Exception as e:
+        logging.error(f"❌ Ошибка удаления промокода: {e}")
+        return False
+
+def get_all_promo_codes():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT code, discount_percent, created_at, expires_at, is_active 
+                FROM promo_codes 
+                WHERE is_active = TRUE
+                ORDER BY created_at DESC
+            """))
+            return result.fetchall()
+    except Exception as e:
+        logging.error(f"❌ Ошибка получения промокодов: {e}")
+        return []
+
+def check_promo_code(code: str):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT discount_percent, expires_at, is_active 
+                    FROM promo_codes 
+                    WHERE code = :code
+                """),
+                {"code": code.upper()}
+            )
+            row = result.fetchone()
+            if not row:
+                return None
+            
+            discount, expires_at, is_active = row
+            
+            if not is_active:
+                return None
+            
+            if expires_at:
+                if datetime.now() > expires_at:
+                    # Автоматически деактивируем просроченный промокод
+                    conn.execute(
+                        text("UPDATE promo_codes SET is_active = FALSE WHERE code = :code"),
+                        {"code": code.upper()}
+                    )
+                    conn.commit()
+                    return None
+            
+            return discount
+    except Exception as e:
+        logging.error(f"❌ Ошибка проверки промокода: {e}")
+        return None
+
+def deactivate_expired_promos():
+    """Фоновая задача для деактивации просроченных промокодов"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    UPDATE promo_codes 
+                    SET is_active = FALSE 
+                    WHERE expires_at IS NOT NULL 
+                    AND expires_at < NOW() 
+                    AND is_active = TRUE
+                """)
+            )
+            conn.commit()
+            if result.rowcount > 0:
+                logging.info(f"✅ Деактивировано {result.rowcount} просроченных промокодов")
+    except Exception as e:
+        logging.error(f"❌ Ошибка деактивации промокодов: {e}")
+
+def start_promo_cleaner():
+    """Запускает фоновый поток для очистки просроченных промокодов"""
+    def cleaner_loop():
+        while True:
+            time.sleep(60)  # Проверяем каждую минуту
+            deactivate_expired_promos()
+    
+    thread = threading.Thread(target=cleaner_loop, daemon=True)
+    thread.start()
+    logging.info("✅ Запущен очиститель просроченных промокодов")
+
+# ==================================================
+# ТЕСТОВАЯ КОМАНДА ДЛЯ ПРОВЕРКИ
+# ==================================================
+@dp.message(Command("test_promo"))
+async def test_promo(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Только для админов!")
+        return
+    
+    # Проверяем подключение к БД
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            await message.answer("✅ Подключение к Supabase работает!")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка подключения: {e}")
+        return
+    
+    # Проверяем таблицу
+    try:
+        with engine.connect() as conn:
+            # Пробуем создать тестовый промокод
+            test_code = f"TEST_{int(time.time())}"
+            conn.execute(
+                text("""
+                    INSERT INTO promo_codes (code, discount_percent, created_by)
+                    VALUES (:code, 10, :admin)
+                    ON CONFLICT (code) DO NOTHING
+                """),
+                {"code": test_code, "admin": message.from_user.id}
+            )
+            conn.commit()
+            
+            # Проверяем что создалось
+            result = conn.execute(
+                text("SELECT code, discount_percent FROM promo_codes WHERE code = :code"),
+                {"code": test_code}
+            ).fetchone()
+            
+            if result:
+                await message.answer(f"✅ Тестовый промокод создан!\nКод: {result[0]}\nСкидка: {result[1]}%\n\nТеперь можешь использовать /admin")
+                # Удаляем тестовый
+                conn.execute(text("DELETE FROM promo_codes WHERE code = :code"), {"code": test_code})
+                conn.commit()
+            else:
+                await message.answer("❌ Не удалось создать тестовый промокод")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}\n\nОтправь этот текст разработчику")
 
 def add_promo_code(code: str, discount: int, expires_minutes: int = None, created_by: int = None):
     try:
@@ -669,12 +880,18 @@ async def cmd_admin(message: Message):
         await message.answer("❌ Только для админов!")
         return
     
+    # Проверяем таблицу промокодов
+    try:
+        promos = get_all_promo_codes()
+        promo_count = len(promos)
+    except Exception as e:
+        logging.error(f"Ошибка получения промокодов: {e}")
+        promo_count = 0
+    
     user_count = get_user_count()
-    promo_count = len(get_all_promo_codes())
     
     text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
     await message.answer(text, reply_markup=get_admin_keyboard())
-
 # ==================================================
 # НОВЫЕ ХЭНДЛЕРЫ ДЛЯ УПРАВЛЕНИЯ ПРОМОКОДАМИ
 # ==================================================
