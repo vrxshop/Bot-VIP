@@ -20,7 +20,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
-import threading
 import time
 
 # ==================================================
@@ -121,346 +120,73 @@ def mark_discount_used(user_id: int, discount_code: str):
         return False
 
 # ==================================================
-# НОВАЯ ТАБЛИЦА ДЛЯ ПРОМОКОДОВ
+# ПРОМОКОДЫ В ОПЕРАТИВНОЙ ПАМЯТИ
 # ==================================================
-# ==================================================
-# НОВАЯ ТАБЛИЦА ДЛЯ ПРОМОКОДОВ (С ДИАГНОСТИКОЙ)
-# ==================================================
-def init_promo_table():
-    try:
-        with engine.connect() as conn:
-            # Сначала проверим, существует ли таблица
-            check_result = conn.execute(text("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = 'promo_codes'
-                )
-            """))
-            exists = check_result.fetchone()[0]
-            
-            if not exists:
-                # Создаем таблицу
-                conn.execute(text("""
-                    CREATE TABLE promo_codes (
-                        code TEXT PRIMARY KEY,
-                        discount_percent INTEGER NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        expires_at TIMESTAMP,
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_by INTEGER
-                    )
-                """))
-                conn.commit()
-                logging.info("✅ Таблица promo_codes создана")
-            else:
-                # Проверяем структуру таблицы
-                logging.info("✅ Таблица promo_codes уже существует")
-                
-                # Добавляем колонку is_active если её нет
-                try:
-                    conn.execute(text("ALTER TABLE promo_codes ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-                    conn.commit()
-                    logging.info("✅ Добавлена колонка is_active")
-                except Exception:
-                    pass  # Колонка уже существует
-                
-                # Добавляем колонку created_by если её нет
-                try:
-                    conn.execute(text("ALTER TABLE promo_codes ADD COLUMN created_by INTEGER"))
-                    conn.commit()
-                    logging.info("✅ Добавлена колонка created_by")
-                except Exception:
-                    pass  # Колонка уже существует
-    except Exception as e:
-        logging.error(f"❌ Ошибка инициализации таблицы промокодов: {e}")
+# Словарь для хранения промокодов
+# { "CODE": {"discount": 60, "expires_at": timestamp} }
+active_promocodes = {}
 
-def add_promo_code(code: str, discount: int, expires_minutes: int = None, created_by: int = None):
-    try:
-        expires_at = None
-        if expires_minutes:
-            expires_at = datetime.now() + timedelta(minutes=expires_minutes)
-        
-        with engine.connect() as conn:
-            # Проверяем, существует ли уже такой код
-            check = conn.execute(
-                text("SELECT code FROM promo_codes WHERE code = :code"),
-                {"code": code.upper()}
-            ).fetchone()
-            
-            if check:
-                logging.error(f"❌ Промокод {code} уже существует")
-                return False
-            
-            # Вставляем новый
-            conn.execute(
-                text("""
-                    INSERT INTO promo_codes (code, discount_percent, expires_at, created_by)
-                    VALUES (:code, :discount, :expires_at, :created_by)
-                """),
-                {"code": code.upper(), "discount": discount, "expires_at": expires_at, "created_by": created_by}
-            )
-            conn.commit()
-            logging.info(f"✅ Промокод {code} создан (скидка {discount}%)")
+def create_promocode(code: str, discount: int, expires_minutes: int = None):
+    """Создает промокод в памяти"""
+    code = code.upper()
+    expires_at = None
+    if expires_minutes:
+        expires_at = time.time() + (expires_minutes * 60)
+    
+    active_promocodes[code] = {
+        "discount": discount,
+        "expires_at": expires_at
+    }
+    logging.info(f"✅ Создан промокод {code} (скидка {discount}%, истекает через {expires_minutes} мин)")
+    return True
+
+def delete_promocode(code: str):
+    """Удаляет промокод"""
+    code = code.upper()
+    if code in active_promocodes:
+        del active_promocodes[code]
+        logging.info(f"✅ Удален промокод {code}")
         return True
-    except Exception as e:
-        logging.error(f"❌ Ошибка добавления промокода: {e}")
-        return False
+    return False
 
-def delete_promo_code(code: str):
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("DELETE FROM promo_codes WHERE code = :code"),
-                {"code": code.upper()}
-            )
-            conn.commit()
-            deleted = result.rowcount > 0
-            if deleted:
-                logging.info(f"✅ Промокод {code} удален")
-            else:
-                logging.warning(f"⚠️ Промокод {code} не найден")
-            return deleted
-    except Exception as e:
-        logging.error(f"❌ Ошибка удаления промокода: {e}")
-        return False
-
-def get_all_promo_codes():
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT code, discount_percent, created_at, expires_at, is_active 
-                FROM promo_codes 
-                WHERE is_active = TRUE
-                ORDER BY created_at DESC
-            """))
-            return result.fetchall()
-    except Exception as e:
-        logging.error(f"❌ Ошибка получения промокодов: {e}")
-        return []
-
-def check_promo_code(code: str):
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("""
-                    SELECT discount_percent, expires_at, is_active 
-                    FROM promo_codes 
-                    WHERE code = :code
-                """),
-                {"code": code.upper()}
-            )
-            row = result.fetchone()
-            if not row:
-                return None
-            
-            discount, expires_at, is_active = row
-            
-            if not is_active:
-                return None
-            
-            if expires_at:
-                if datetime.now() > expires_at:
-                    # Автоматически деактивируем просроченный промокод
-                    conn.execute(
-                        text("UPDATE promo_codes SET is_active = FALSE WHERE code = :code"),
-                        {"code": code.upper()}
-                    )
-                    conn.commit()
-                    return None
-            
-            return discount
-    except Exception as e:
-        logging.error(f"❌ Ошибка проверки промокода: {e}")
+def check_promocode(code: str):
+    """Проверяет промокод и возвращает скидку или None"""
+    code = code.upper()
+    
+    if code not in active_promocodes:
         return None
-
-def deactivate_expired_promos():
-    """Фоновая задача для деактивации просроченных промокодов"""
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("""
-                    UPDATE promo_codes 
-                    SET is_active = FALSE 
-                    WHERE expires_at IS NOT NULL 
-                    AND expires_at < NOW() 
-                    AND is_active = TRUE
-                """)
-            )
-            conn.commit()
-            if result.rowcount > 0:
-                logging.info(f"✅ Деактивировано {result.rowcount} просроченных промокодов")
-    except Exception as e:
-        logging.error(f"❌ Ошибка деактивации промокодов: {e}")
-
-def start_promo_cleaner():
-    """Запускает фоновый поток для очистки просроченных промокодов"""
-    def cleaner_loop():
-        while True:
-            time.sleep(60)  # Проверяем каждую минуту
-            deactivate_expired_promos()
     
-    thread = threading.Thread(target=cleaner_loop, daemon=True)
-    thread.start()
-    logging.info("✅ Запущен очиститель просроченных промокодов")
-
-# ==================================================
-# ТЕСТОВАЯ КОМАНДА ДЛЯ ПРОВЕРКИ
-# ==================================================
-@dp.message(Command("test_promo"))
-async def test_promo(message: Message):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Только для админов!")
-        return
+    promo = active_promocodes[code]
     
-    # Проверяем подключение к БД
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
-            await message.answer("✅ Подключение к Supabase работает!")
-    except Exception as e:
-        await message.answer(f"❌ Ошибка подключения: {e}")
-        return
+    # Проверяем срок действия
+    if promo["expires_at"]:
+        if time.time() > promo["expires_at"]:
+            # Промокод просрочен - удаляем
+            del active_promocodes[code]
+            logging.info(f"⏰ Промокод {code} просрочен и удален")
+            return None
     
-    # Проверяем таблицу
-    try:
-        with engine.connect() as conn:
-            # Пробуем создать тестовый промокод
-            test_code = f"TEST_{int(time.time())}"
-            conn.execute(
-                text("""
-                    INSERT INTO promo_codes (code, discount_percent, created_by)
-                    VALUES (:code, 10, :admin)
-                    ON CONFLICT (code) DO NOTHING
-                """),
-                {"code": test_code, "admin": message.from_user.id}
-            )
-            conn.commit()
-            
-            # Проверяем что создалось
-            result = conn.execute(
-                text("SELECT code, discount_percent FROM promo_codes WHERE code = :code"),
-                {"code": test_code}
-            ).fetchone()
-            
-            if result:
-                await message.answer(f"✅ Тестовый промокод создан!\nКод: {result[0]}\nСкидка: {result[1]}%\n\nТеперь можешь использовать /admin")
-                # Удаляем тестовый
-                conn.execute(text("DELETE FROM promo_codes WHERE code = :code"), {"code": test_code})
-                conn.commit()
-            else:
-                await message.answer("❌ Не удалось создать тестовый промокод")
-    except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}\n\nОтправь этот текст разработчику")
+    return promo["discount"]
 
-def add_promo_code(code: str, discount: int, expires_minutes: int = None, created_by: int = None):
-    try:
-        expires_at = None
-        if expires_minutes:
-            expires_at = datetime.now() + timedelta(minutes=expires_minutes)
-        
-        with engine.connect() as conn:
-            conn.execute(
-                text("""
-                    INSERT INTO promo_codes (code, discount_percent, expires_at, created_by)
-                    VALUES (:code, :discount, :expires_at, :created_by)
-                """),
-                {"code": code.upper(), "discount": discount, "expires_at": expires_at, "created_by": created_by}
-            )
-            conn.commit()
-        return True
-    except Exception as e:
-        logging.error(f"Ошибка добавления промокода: {e}")
-        return False
-
-def delete_promo_code(code: str):
-    try:
-        with engine.connect() as conn:
-            conn.execute(
-                text("DELETE FROM promo_codes WHERE code = :code"),
-                {"code": code.upper()}
-            )
-            conn.commit()
-        return True
-    except Exception as e:
-        logging.error(f"Ошибка удаления промокода: {e}")
-        return False
-
-def get_all_promo_codes():
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT code, discount_percent, created_at, expires_at, is_active 
-                FROM promo_codes 
-                WHERE is_active = TRUE
-                ORDER BY created_at DESC
-            """))
-            return result.fetchall()
-    except Exception as e:
-        logging.error(f"Ошибка получения промокодов: {e}")
-        return []
-
-def check_promo_code(code: str):
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("""
-                    SELECT discount_percent, expires_at, is_active 
-                    FROM promo_codes 
-                    WHERE code = :code
-                """),
-                {"code": code.upper()}
-            )
-            row = result.fetchone()
-            if not row:
-                return None
-            
-            discount, expires_at, is_active = row
-            
-            if not is_active:
-                return None
-            
-            if expires_at:
-                if datetime.now() > expires_at:
-                    # Автоматически деактивируем просроченный промокод
-                    conn.execute(
-                        text("UPDATE promo_codes SET is_active = FALSE WHERE code = :code"),
-                        {"code": code.upper()}
-                    )
-                    conn.commit()
-                    return None
-            
-            return discount
-    except Exception as e:
-        logging.error(f"Ошибка проверки промокода: {e}")
-        return None
-
-def deactivate_expired_promos():
-    """Фоновая задача для деактивации просроченных промокодов"""
-    try:
-        with engine.connect() as conn:
-            conn.execute(
-                text("""
-                    UPDATE promo_codes 
-                    SET is_active = FALSE 
-                    WHERE expires_at IS NOT NULL 
-                    AND expires_at < NOW() 
-                    AND is_active = TRUE
-                """)
-            )
-            conn.commit()
-    except Exception as e:
-        logging.error(f"Ошибка деактивации промокодов: {e}")
-
-def start_promo_cleaner():
-    """Запускает фоновый поток для очистки просроченных промокодов"""
-    def cleaner_loop():
-        while True:
-            time.sleep(60)  # Проверяем каждую минуту
-            deactivate_expired_promos()
+def get_all_promocodes():
+    """Возвращает список всех активных промокодов"""
+    # Удаляем просроченные
+    expired = []
+    for code, data in active_promocodes.items():
+        if data["expires_at"] and time.time() > data["expires_at"]:
+            expired.append(code)
     
-    thread = threading.Thread(target=cleaner_loop, daemon=True)
-    thread.start()
-    logging.info("✅ Запущен очиститель просроченных промокодов")
+    for code in expired:
+        del active_promocodes[code]
+        logging.info(f"⏰ Промокод {code} просрочен и удален")
+    
+    return list(active_promocodes.items())
+
+def cleanup_expired_promocodes():
+    """Фоновая очистка просроченных промокодов"""
+    while True:
+        time.sleep(60)  # Проверяем каждую минуту
+        get_all_promocodes()  # Эта функция сама удаляет просроченные
 
 # ==================================================
 # КОНФИГУРАЦИЯ
@@ -550,7 +276,7 @@ def is_tariff_paid(user_id: int, tariff_key: str):
         return False
 
 # ==================================================
-# ТЕКСТЫ (добавляем новые)
+# ТЕКСТЫ
 # ==================================================
 LANG = {
     "ru": {
@@ -562,7 +288,7 @@ LANG = {
         "tariff_desc_paid": "📋 {name}\n\n💰 Цена: {price_text} RUB\n\n{desc}\n\n🔐 Будет получен доступ на срок {duration} к:\n• Shkod VIP👑 (внешняя ссылка)\n\n✅ <b>ТАРИФ ОПЛАЧЕН</b>\n\n🔑 Для получения ссылки напишите в поддержку @Nastia_sup",
         "enter_promo": "🏷️ <b>Введите промокод</b>\n\nНапишите промокод в чат.",
         "promo_success": "✅ Промокод <b>{code}</b> активирован! Скидка {discount}% 🔥\n\n📋 {name}\n💰 Цена: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nВыберите валюту для оплаты.",
-        "promo_fail": "❌ Промокод не найден. Попробуйте еще раз.",
+        "promo_fail": "❌ Промокод не найден или истек. Попробуйте еще раз.",
         "choose_pay": "📋 {name}\nСрок доступа: {duration}\n💰 Цена: {price_text}\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\nВыберите валюту для оплаты",
         "pay_rub": "📋 {name}\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: RollyPay\n\n💰 Итоговая стоимость: {final} RUB\n\n🔒 Будет получен доступ к:\n• {project} (внешняя ссылка)\n\n✅ Счет на оплату сформирован!",
         "pay_stars": "📋 {name}\nСрок доступа: {duration}\n{price_line}💳 Способ оплаты: ЗА ЗВЕЗДЫ ⭐\n\n💰 Итоговая стоимость: {final} STARS\n\nℹ️ <b>Информация по оплате</b>\nПодарить звезды или подарки на этот аккаунт - <a href=\"{support}\">@Nastia_sup</a>\n\nкурс:\n1 ⭐ - 1 рубль",
@@ -585,7 +311,6 @@ LANG = {
         "payment_success": "✅ <b>Оплата прошла!</b>\n\n🔗 <b>Ваша ссылка доступа (действует 30 секунд):</b>\n{link}\n\n⚠️ <b>Внимание!</b> Ссылка действительна только 30 секунд!\n\nСпасибо за покупку! ❤️",
         "payment_success_test": "✅ <b>Доступ открыт!</b>\n\n🔗 <b>Ваша ссылка доступа (действует 30 секунд):</b>\n{link}\n\n⚠️ <b>Внимание!</b> Ссылка действительна только 30 секунд!\n\nСпасибо за использование бота! ❤️",
         "subs_list_item": "• {name} (оплачен ✅)",
-        # Новые тексты для админки
         "admin_panel": "⚙️ <b>Админ-панель</b>\n\n👥 Всего пользователей: {users}\n🎫 Активных промокодов: {promos}\n\nВыберите действие:",
         "promo_created": "✅ Промокод <b>{code}</b> создан!\n\n📊 Скидка: {discount}%\n⏰ Действует: {time}\n\nПромокод уже работает!",
         "promo_deleted": "✅ Промокод <b>{code}</b> удален!",
@@ -593,7 +318,7 @@ LANG = {
         "no_promos": "📭 Нет активных промокодов",
         "enter_code": "📝 <b>Введите название промокода</b>\n\n(только буквы и цифры, без пробелов)\n\n🔄 Чтобы отменить, отправьте /cancel",
         "enter_discount": "📝 <b>Введите размер скидки</b>\n\n(число от 1 до 100)\n\n🔄 Чтобы отменить, отправьте /cancel",
-        "enter_expires": "⏰ <b>Введите время действия промокода</b>\n\nУкажите в минутах (например: 5, 30, 60)\n\nЕсли не нужно ограничение, отправьте 0 или пропустите\n\n🔄 Чтобы отменить, отправьте /cancel",
+        "enter_expires": "⏰ <b>Введите время действия промокода</b>\n\nУкажите в минутах (например: 5, 30, 60)\n\nЕсли не нужно ограничение, отправьте 0\n\n🔄 Чтобы отменить, отправьте /cancel",
         "btn_create_promo": "➕ Создать промокод",
         "btn_delete_promo": "🗑️ Удалить промокод",
         "btn_list_promos": "📋 Список промокодов",
@@ -608,7 +333,7 @@ LANG = {
         "tariff_desc_paid": "📋 {name}\n\n💰 Price: {price_text} RUB\n\n{desc}\n\n🔐 You will get access for {duration} to:\n• Shkod VIP👑 (external link)\n\n✅ <b>TARIFF PAID</b>\n\n🔑 To get the link contact support @Nastia_sup",
         "enter_promo": "🏷️ <b>Enter promo code</b>\n\nType the promo code in the chat.",
         "promo_success": "✅ Promo code <b>{code}</b> activated! {discount}% discount 🔥\n\n📋 {name}\n💰 Price: <s>{old_rub} RUB</s> → {new_rub} RUB <b>(-{discount}%)</b>\n\nChoose a currency for payment.",
-        "promo_fail": "❌ Promo code not found. Try again.",
+        "promo_fail": "❌ Promo code not found or expired. Try again.",
         "choose_pay": "📋 {name}\nAccess duration: {duration}\n💰 Price: {price_text}\n\n🔒 You will get access to:\n• {project} (external link)\n\nChoose a currency for payment",
         "pay_rub": "📋 {name}\nAccess duration: {duration}\n{price_line}💳 Payment method: RollyPay\n\n💰 Total cost: {final} RUB\n\n🔒 You will get access to:\n• {project} (external link)\n\n✅ Invoice created!",
         "pay_stars": "📋 {name}\nAccess duration: {duration}\n{price_line}💳 Payment method: FOR STARS ⭐\n\n💰 Total cost: {final} STARS\n\nℹ️ <b>Payment info</b>\nSend stars or gifts to this account - <a href=\"{support}\">@Nastia_sup</a>\n\nRate:\n1 ⭐ - 1 ruble",
@@ -638,7 +363,7 @@ LANG = {
         "no_promos": "📭 No active promocodes",
         "enter_code": "📝 <b>Enter promo code name</b>\n\n(only letters and numbers, no spaces)\n\n🔄 To cancel, send /cancel",
         "enter_discount": "📝 <b>Enter discount percentage</b>\n\n(number from 1 to 100)\n\n🔄 To cancel, send /cancel",
-        "enter_expires": "⏰ <b>Enter promo code duration</b>\n\nEnter in minutes (e.g.: 5, 30, 60)\n\nIf no limit needed, enter 0 or skip\n\n🔄 To cancel, send /cancel",
+        "enter_expires": "⏰ <b>Enter promo code duration</b>\n\nEnter in minutes (e.g.: 5, 30, 60)\n\nIf no limit needed, enter 0\n\n🔄 To cancel, send /cancel",
         "btn_create_promo": "➕ Create promocode",
         "btn_delete_promo": "🗑️ Delete promocode",
         "btn_list_promos": "📋 List promocodes",
@@ -647,7 +372,7 @@ LANG = {
 }
 
 # ==================================================
-# ТАРИФЫ (без изменений)
+# ТАРИФЫ
 # ==================================================
 TARIFFS = {
     "week": {
@@ -692,9 +417,6 @@ TEST_TARIFF = {
     "desc_ru": "🧪 Это тестовый тариф. Он полностью БЕСПЛАТНЫЙ!\n\nПросто выберите его и получите ссылку для тестирования."
 }
 
-# УДАЛЯЕМ СТАРЫЕ ПРОМОКОДЫ - теперь они в БД
-# PROMO_CODES = {...}  # УДАЛЕНО!
-
 # ==================================================
 # ИНИЦИАЛИЗАЦИЯ
 # ==================================================
@@ -706,18 +428,16 @@ dp = Dispatcher(storage=storage)
 # --- FSM STATES ---
 class PromoStates(StatesGroup):
     waiting_for_promo = State()
-    # Новые состояния для админки
     waiting_for_code = State()
     waiting_for_discount = State()
     waiting_for_expires = State()
-    waiting_for_delete = State()
 
 class MailingStates(StatesGroup):
     waiting_for_content = State()
     waiting_for_mail_type = State()
 
 # ==================================================
-# ФУНКЦИИ (обновлены с учетом БД)
+# ФУНКЦИИ
 # ==================================================
 async def create_rollypay_payment(amount: int, user_id: int, tariff_key: str, tariff_name: str) -> str:
     discounts = get_user_discounts(user_id)
@@ -801,7 +521,7 @@ async def save_payment_and_send_link(message: Message, tariff_key: str, lang: st
     await message.answer(text, disable_web_page_preview=False)
 
 # ==================================================
-# КЛАВИАТУРЫ (добавляем новые для админки)
+# КЛАВИАТУРЫ
 # ==================================================
 def get_main_keyboard(lang):
     return ReplyKeyboardMarkup(keyboard=[
@@ -872,278 +592,7 @@ def get_admin_keyboard():
     ])
 
 # ==================================================
-# ОБНОВЛЕННЫЙ ХЭНДЛЕР /admin
-# ==================================================
-@dp.message(Command("admin"))
-async def cmd_admin(message: Message):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Только для админов!")
-        return
-    
-    # Проверяем таблицу промокодов
-    try:
-        promos = get_all_promo_codes()
-        promo_count = len(promos)
-    except Exception as e:
-        logging.error(f"Ошибка получения промокодов: {e}")
-        promo_count = 0
-    
-    user_count = get_user_count()
-    
-    text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
-    await message.answer(text, reply_markup=get_admin_keyboard())
-# ==================================================
-# НОВЫЕ ХЭНДЛЕРЫ ДЛЯ УПРАВЛЕНИЯ ПРОМОКОДАМИ
-# ==================================================
-
-# --- СОЗДАНИЕ ПРОМОКОДА ---
-@dp.callback_query(F.data == "admin_create_promo")
-async def admin_create_promo_start(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    await callback.message.delete()
-    await callback.message.answer(
-        LANG["ru"]["enter_code"],
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🚫 Отмена", callback_data="admin_cancel")]
-        ])
-    )
-    await state.set_state(PromoStates.waiting_for_code)
-    await callback.answer()
-
-@dp.message(PromoStates.waiting_for_code)
-async def process_promo_code_name(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Только для админов!")
-        return
-    
-    code = message.text.strip().upper()
-    
-    # Проверяем, что только буквы и цифры
-    if not re.match(r'^[A-Z0-9]+$', code):
-        await message.answer("❌ Промокод может содержать только буквы и цифры! Попробуйте еще раз.")
-        return
-    
-    # Проверяем, не существует ли уже такой промокод
-    existing = check_promo_code(code)
-    if existing is not None:
-        await message.answer("❌ Такой промокод уже существует! Придумайте другой.")
-        return
-    
-    await state.update_data(promo_code=code)
-    await message.answer(LANG["ru"]["enter_discount"])
-    await state.set_state(PromoStates.waiting_for_discount)
-
-@dp.message(PromoStates.waiting_for_discount)
-async def process_promo_discount(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Только для админов!")
-        return
-    
-    try:
-        discount = int(message.text.strip())
-        if discount < 1 or discount > 100:
-            await message.answer("❌ Скидка должна быть от 1 до 100%!")
-            return
-    except ValueError:
-        await message.answer("❌ Введите число от 1 до 100!")
-        return
-    
-    await state.update_data(promo_discount=discount)
-    await message.answer(LANG["ru"]["enter_expires"])
-    await state.set_state(PromoStates.waiting_for_expires)
-
-@dp.message(PromoStates.waiting_for_expires)
-async def process_promo_expires(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Только для админов!")
-        return
-    
-    try:
-        minutes = int(message.text.strip())
-        if minutes < 0:
-            await message.answer("❌ Введите положительное число или 0!")
-            return
-        expires_minutes = minutes if minutes > 0 else None
-    except ValueError:
-        expires_minutes = None  # Если ввели не число - считаем бессрочным
-    
-    data = await state.get_data()
-    code = data.get("promo_code")
-    discount = data.get("promo_discount")
-    
-    # Создаем промокод
-    success = add_promo_code(code, discount, expires_minutes, message.from_user.id)
-    
-    if success:
-        time_text = f"{expires_minutes} минут" if expires_minutes else "Бессрочно"
-        text = LANG["ru"]["promo_created"].format(
-            code=code,
-            discount=discount,
-            time=time_text
-        )
-        await message.answer(text)
-        
-        # Возвращаемся в админку
-        user_count = get_user_count()
-        promo_count = len(get_all_promo_codes())
-        admin_text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
-        await message.answer(admin_text, reply_markup=get_admin_keyboard())
-    else:
-        await message.answer("❌ Ошибка создания промокода!")
-    
-    await state.clear()
-
-# --- УДАЛЕНИЕ ПРОМОКОДА ---
-@dp.callback_query(F.data == "admin_delete_promo")
-async def admin_delete_promo_start(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    promos = get_all_promo_codes()
-    if not promos:
-        await callback.answer("📭 Нет активных промокодов для удаления!", show_alert=True)
-        return
-    
-    # Создаем клавиатуру со списком промокодов
-    buttons = []
-    for promo in promos:
-        code, discount, created, expires, active = promo
-        expires_text = f" ({expires.strftime('%d.%m %H:%M')})" if expires else " (бессрочно)"
-        buttons.append([InlineKeyboardButton(
-            text=f"{code} - {discount}%{expires_text}",
-            callback_data=f"delete_promo_{code}"
-        )])
-    
-    buttons.append([InlineKeyboardButton(text="🚫 Отмена", callback_data="admin_cancel")])
-    
-    await callback.message.delete()
-    await callback.message.answer(
-        "🗑️ <b>Выберите промокод для удаления:</b>",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
-    )
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("delete_promo_"))
-async def process_delete_promo(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    code = callback.data.replace("delete_promo_", "")
-    success = delete_promo_code(code)
-    
-    if success:
-        await callback.answer(f"✅ Промокод {code} удален!", show_alert=True)
-        text = LANG["ru"]["promo_deleted"].format(code=code)
-        await callback.message.edit_text(text)
-        
-        # Возвращаемся в админку
-        user_count = get_user_count()
-        promo_count = len(get_all_promo_codes())
-        admin_text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
-        await callback.message.answer(admin_text, reply_markup=get_admin_keyboard())
-    else:
-        await callback.answer("❌ Ошибка удаления!", show_alert=True)
-
-# --- СПИСОК ПРОМОКОДОВ ---
-@dp.callback_query(F.data == "admin_list_promos")
-async def admin_list_promos(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    promos = get_all_promo_codes()
-    
-    if not promos:
-        await callback.message.edit_text(LANG["ru"]["no_promos"])
-        return
-    
-    promo_list = []
-    for promo in promos:
-        code, discount, created, expires, active = promo
-        expires_text = f"⏰ До {expires.strftime('%d.%m %H:%M')}" if expires else "♾️ Бессрочно"
-        promo_list.append(f"• <b>{code}</b> — {discount}% ({expires_text})")
-    
-    text = LANG["ru"]["promo_list"].format(
-        promo_list="\n".join(promo_list),
-        count=len(promos)
-    )
-    
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👈 Назад", callback_data="admin_back")]
-    ]))
-    await callback.answer()
-
-@dp.callback_query(F.data == "admin_back")
-async def admin_back(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    user_count = get_user_count()
-    promo_count = len(get_all_promo_codes())
-    text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
-    await callback.message.edit_text(text, reply_markup=get_admin_keyboard())
-    await callback.answer()
-
-@dp.callback_query(F.data == "admin_cancel")
-async def admin_cancel(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    await state.clear()
-    user_count = get_user_count()
-    promo_count = len(get_all_promo_codes())
-    text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
-    await callback.message.delete()
-    await callback.message.answer(text, reply_markup=get_admin_keyboard())
-    await callback.answer()
-
-# ==================================================
-# ОБНОВЛЕННЫЙ ОБРАБОТЧИК ПРОМОКОДОВ (использует БД)
-# ==================================================
-@dp.message(PromoStates.waiting_for_promo)
-async def process_promo(message: Message, state: FSMContext):
-    promo_code = message.text.strip().upper()
-    data = await state.get_data()
-    tariff_key = data.get("current_tariff")
-    lang = "ru"
-    
-    if not tariff_key or tariff_key not in TARIFFS:
-        await state.clear()
-        await message.answer("❌ Ошибка. Попробуйте выбрать тариф заново.")
-        return
-
-    # Проверяем промокод в БД
-    discount = check_promo_code(promo_code)
-    
-    if discount is not None:
-        # Добавляем скидку пользователю
-        add_user_discount(message.from_user.id, promo_code, discount)
-        
-        tariff = TARIFFS[tariff_key]
-        name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
-        new_rub = int(tariff['price_rub'] * (1 - discount / 100))
-        
-        text = LANG[lang]["promo_success"].format(
-            code=promo_code, 
-            discount=discount, 
-            name=name, 
-            old_rub=tariff['price_rub'], 
-            new_rub=new_rub
-        )
-        await message.answer(text, reply_markup=get_payment_method_keyboard(tariff_key, discount, lang))
-        await state.clear()
-    else:
-        await message.answer(LANG[lang]["promo_fail"])
-
-# ==================================================
-# ОСТАЛЬНЫЕ ХЭНДЛЕРЫ (без изменений, но с обновленной логикой промокодов)
+# ХЭНДЛЕРЫ
 # ==================================================
 
 @dp.message(CommandStart())
@@ -1195,8 +644,220 @@ async def show_subscriptions_button(message: Message, state: FSMContext):
     
     await message.answer(LANG[lang]["no_subs"])
 
-# --- Остальные хэндлеры (рассылка, статистика, тарифы и т.д.) ---
-# Они остаются без изменений, кроме того что PROMO_CODES больше не используется
+@dp.message(Command("admin"))
+async def cmd_admin(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Только для админов!")
+        return
+    
+    user_count = get_user_count()
+    promo_count = len(get_all_promocodes())
+    
+    text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
+    await message.answer(text, reply_markup=get_admin_keyboard())
+
+# --- УПРАВЛЕНИЕ ПРОМОКОДАМИ ---
+
+@dp.callback_query(F.data == "admin_create_promo")
+async def admin_create_promo_start(callback: CallbackQuery, state: FSMContext):
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ Только для админов!", show_alert=True)
+        return
+    
+    await callback.message.delete()
+    await callback.message.answer(
+        LANG["ru"]["enter_code"],
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🚫 Отмена", callback_data="admin_cancel")]
+        ])
+    )
+    await state.set_state(PromoStates.waiting_for_code)
+    await callback.answer()
+
+@dp.message(PromoStates.waiting_for_code)
+async def process_promo_code_name(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Только для админов!")
+        return
+    
+    code = message.text.strip().upper()
+    
+    if not re.match(r'^[A-Z0-9]+$', code):
+        await message.answer("❌ Промокод может содержать только буквы и цифры! Попробуйте еще раз.")
+        return
+    
+    # Проверяем, не существует ли уже такой промокод
+    if check_promocode(code) is not None:
+        await message.answer("❌ Такой промокод уже существует! Придумайте другой.")
+        return
+    
+    await state.update_data(promo_code=code)
+    await message.answer(LANG["ru"]["enter_discount"])
+    await state.set_state(PromoStates.waiting_for_discount)
+
+@dp.message(PromoStates.waiting_for_discount)
+async def process_promo_discount(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Только для админов!")
+        return
+    
+    try:
+        discount = int(message.text.strip())
+        if discount < 1 or discount > 100:
+            await message.answer("❌ Скидка должна быть от 1 до 100%!")
+            return
+    except ValueError:
+        await message.answer("❌ Введите число от 1 до 100!")
+        return
+    
+    await state.update_data(promo_discount=discount)
+    await message.answer(LANG["ru"]["enter_expires"])
+    await state.set_state(PromoStates.waiting_for_expires)
+
+@dp.message(PromoStates.waiting_for_expires)
+async def process_promo_expires(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Только для админов!")
+        return
+    
+    try:
+        minutes = int(message.text.strip())
+        if minutes < 0:
+            await message.answer("❌ Введите положительное число или 0!")
+            return
+        expires_minutes = minutes if minutes > 0 else None
+    except ValueError:
+        expires_minutes = None
+    
+    data = await state.get_data()
+    code = data.get("promo_code")
+    discount = data.get("promo_discount")
+    
+    success = create_promocode(code, discount, expires_minutes)
+    
+    if success:
+        time_text = f"{expires_minutes} минут" if expires_minutes else "Бессрочно"
+        text = LANG["ru"]["promo_created"].format(
+            code=code,
+            discount=discount,
+            time=time_text
+        )
+        await message.answer(text)
+        
+        user_count = get_user_count()
+        promo_count = len(get_all_promocodes())
+        admin_text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
+        await message.answer(admin_text, reply_markup=get_admin_keyboard())
+    else:
+        await message.answer("❌ Ошибка создания промокода!")
+    
+    await state.clear()
+
+@dp.callback_query(F.data == "admin_delete_promo")
+async def admin_delete_promo_start(callback: CallbackQuery):
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ Только для админов!", show_alert=True)
+        return
+    
+    promos = get_all_promocodes()
+    if not promos:
+        await callback.answer("📭 Нет активных промокодов для удаления!", show_alert=True)
+        return
+    
+    buttons = []
+    for code, data in promos:
+        expires_text = f" (осталось {int((data['expires_at'] - time.time()) / 60)} мин)" if data['expires_at'] else " (бессрочно)"
+        buttons.append([InlineKeyboardButton(
+            text=f"{code} - {data['discount']}%{expires_text}",
+            callback_data=f"delete_promo_{code}"
+        )])
+    
+    buttons.append([InlineKeyboardButton(text="🚫 Отмена", callback_data="admin_cancel")])
+    
+    await callback.message.delete()
+    await callback.message.answer(
+        "🗑️ <b>Выберите промокод для удаления:</b>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("delete_promo_"))
+async def process_delete_promo(callback: CallbackQuery):
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ Только для админов!", show_alert=True)
+        return
+    
+    code = callback.data.replace("delete_promo_", "")
+    success = delete_promocode(code)
+    
+    if success:
+        await callback.answer(f"✅ Промокод {code} удален!", show_alert=True)
+        text = LANG["ru"]["promo_deleted"].format(code=code)
+        await callback.message.edit_text(text)
+        
+        user_count = get_user_count()
+        promo_count = len(get_all_promocodes())
+        admin_text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
+        await callback.message.answer(admin_text, reply_markup=get_admin_keyboard())
+    else:
+        await callback.answer("❌ Ошибка удаления!", show_alert=True)
+
+@dp.callback_query(F.data == "admin_list_promos")
+async def admin_list_promos(callback: CallbackQuery):
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ Только для админов!", show_alert=True)
+        return
+    
+    promos = get_all_promocodes()
+    
+    if not promos:
+        await callback.message.edit_text(LANG["ru"]["no_promos"])
+        return
+    
+    promo_list = []
+    for code, data in promos:
+        if data['expires_at']:
+            remaining = int((data['expires_at'] - time.time()) / 60)
+            expires_text = f"⏰ Осталось {remaining} мин"
+        else:
+            expires_text = "♾️ Бессрочно"
+        promo_list.append(f"• <b>{code}</b> — {data['discount']}% ({expires_text})")
+    
+    text = LANG["ru"]["promo_list"].format(
+        promo_list="\n".join(promo_list),
+        count=len(promos)
+    )
+    
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👈 Назад", callback_data="admin_back")]
+    ]))
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin_back")
+async def admin_back(callback: CallbackQuery):
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ Только для админов!", show_alert=True)
+        return
+    
+    user_count = get_user_count()
+    promo_count = len(get_all_promocodes())
+    text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
+    await callback.message.edit_text(text, reply_markup=get_admin_keyboard())
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin_cancel")
+async def admin_cancel(callback: CallbackQuery, state: FSMContext):
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ Только для админов!", show_alert=True)
+        return
+    
+    await state.clear()
+    user_count = get_user_count()
+    promo_count = len(get_all_promocodes())
+    text = LANG["ru"]["admin_panel"].format(users=user_count, promos=promo_count)
+    await callback.message.delete()
+    await callback.message.answer(text, reply_markup=get_admin_keyboard())
+    await callback.answer()
 
 @dp.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: CallbackQuery):
@@ -1205,7 +866,7 @@ async def admin_stats(callback: CallbackQuery):
         return
     
     user_count = get_user_count()
-    promo_count = len(get_all_promo_codes())
+    promo_count = len(get_all_promocodes())
     
     await callback.message.edit_text(
         f"📊 <b>Статистика бота</b>\n\n"
@@ -1214,6 +875,8 @@ async def admin_stats(callback: CallbackQuery):
         reply_markup=get_admin_keyboard()
     )
     await callback.answer()
+
+# --- РАССЫЛКА ---
 
 @dp.callback_query(F.data == "admin_mailing")
 async def admin_mailing_start(callback: CallbackQuery, state: FSMContext):
@@ -1232,53 +895,11 @@ async def admin_mailing_start(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(MailingStates.waiting_for_content)
 
-@dp.message(Command("mail"))
-async def cmd_mail(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Только для админов!")
-        return
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📨 Обычная рассылка", callback_data="mail_normal")]
-    ])
-    
-    await message.answer(
-        "📨 <b>Выбери тип рассылки:</b>\n\n"
-        "• Обычная — просто текст",
-        reply_markup=keyboard
-    )
-    await state.set_state(MailingStates.waiting_for_mail_type)
-
-@dp.callback_query(MailingStates.waiting_for_mail_type)
-async def process_mail_type(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id not in ADMIN_IDS:
-        await callback.answer("❌ Только для админов!", show_alert=True)
-        return
-    
-    mail_type = callback.data.replace("mail_", "")
-    await state.update_data(mail_type=mail_type)
-    
-    await callback.message.delete()
-    await callback.message.answer(
-        "📝 <b>Отправь текст сообщения</b>\n\n"
-        "Этот текст увидят все пользователи. Ты можешь отправить:\n"
-        "• Текст\n"
-        "• Фото\n"
-        "• Видео\n"
-        "• GIF\n\n"
-        "🔄 Чтобы отменить, отправь /cancel"
-    )
-    await state.set_state(MailingStates.waiting_for_content)
-    await callback.answer()
-
 @dp.message(MailingStates.waiting_for_content)
 async def process_mailing_content(message: Message, state: FSMContext):
     if message.from_user.id not in ADMIN_IDS:
         await message.answer("❌ Только для админов!")
         return
-    
-    data = await state.get_data()
-    mail_type = data.get("mail_type", "normal")
     
     await message.answer("⏳ Начинаю рассылку...")
     
@@ -1289,25 +910,21 @@ async def process_mailing_content(message: Message, state: FSMContext):
         await state.clear()
         return
     
-    keyboard = None
-    footer = ""
-    
     success = 0
     failed = 0
     
     for user_id in users:
         try:
             if message.text:
-                text = message.text + footer
-                await bot.send_message(user_id, text, parse_mode="HTML", reply_markup=keyboard)
+                await bot.send_message(user_id, message.text, parse_mode="HTML")
             elif message.photo:
-                await bot.send_photo(user_id, message.photo[-1].file_id, caption=message.caption + footer, reply_markup=keyboard)
+                await bot.send_photo(user_id, message.photo[-1].file_id, caption=message.caption)
             elif message.video:
-                await bot.send_video(user_id, message.video.file_id, caption=message.caption + footer, reply_markup=keyboard)
+                await bot.send_video(user_id, message.video.file_id, caption=message.caption)
             elif message.animation:
-                await bot.send_animation(user_id, message.animation.file_id, caption=message.caption + footer, reply_markup=keyboard)
+                await bot.send_animation(user_id, message.animation.file_id, caption=message.caption)
             elif message.document:
-                await bot.send_document(user_id, message.document.file_id, caption=message.caption + footer, reply_markup=keyboard)
+                await bot.send_document(user_id, message.document.file_id, caption=message.caption)
             else:
                 await message.answer("❌ Неподдерживаемый тип сообщения!")
                 await state.clear()
@@ -1326,10 +943,7 @@ async def process_mailing_content(message: Message, state: FSMContext):
     )
     await state.clear()
 
-@dp.message(Command("cancel"))
-async def cancel_mailing(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer("✅ Отменено.")
+# --- ТАРИФЫ И ОПЛАТА ---
 
 @dp.message(Command("test67"))
 async def cmd_test67(message: Message, state: FSMContext):
@@ -1440,6 +1054,39 @@ async def enter_promo(callback: CallbackQuery, state: FSMContext):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=LANG[lang]["btn_cancel"], callback_data=f"cancel_promo_{tariff_key}")]])
     )
     await state.set_state(PromoStates.waiting_for_promo)
+
+@dp.message(PromoStates.waiting_for_promo)
+async def process_promo(message: Message, state: FSMContext):
+    promo_code = message.text.strip().upper()
+    data = await state.get_data()
+    tariff_key = data.get("current_tariff")
+    lang = "ru"
+    
+    if not tariff_key or tariff_key not in TARIFFS:
+        await state.clear()
+        await message.answer("❌ Ошибка. Попробуйте выбрать тариф заново.")
+        return
+
+    discount = check_promocode(promo_code)
+    
+    if discount is not None:
+        add_user_discount(message.from_user.id, promo_code, discount)
+        
+        tariff = TARIFFS[tariff_key]
+        name = tariff['name_ru'] if lang == "ru" else tariff['name_en']
+        new_rub = int(tariff['price_rub'] * (1 - discount / 100))
+        
+        text = LANG[lang]["promo_success"].format(
+            code=promo_code, 
+            discount=discount, 
+            name=name, 
+            old_rub=tariff['price_rub'], 
+            new_rub=new_rub
+        )
+        await message.answer(text, reply_markup=get_payment_method_keyboard(tariff_key, discount, lang))
+        await state.clear()
+    else:
+        await message.answer(LANG[lang]["promo_fail"])
 
 @dp.callback_query(F.data.startswith("cancel_promo_"))
 async def cancel_promo(callback: CallbackQuery, state: FSMContext):
@@ -1565,7 +1212,7 @@ async def process_rub_payment(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text, reply_markup=get_payment_action_keyboard(payment_url, tariff_key, lang))
     else:
         await callback.answer("❌ Ошибка создания платежа. Попробуйте позже или выберите другой способ оплаты.", show_alert=True)
-        
+
 @dp.callback_query(F.data.startswith("payment_success_"))
 async def payment_success(callback: CallbackQuery, state: FSMContext):
     tariff_key = callback.data.replace("payment_success_", "")
@@ -1667,20 +1314,27 @@ async def process_lang_change(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
     await callback.message.answer(f"✅ Язык установлен на {'Русский' if lang == 'ru' else 'English'}! Нажмите /start")
 
+@dp.message(Command("cancel"))
+async def cancel_command(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("✅ Отменено.")
+
 # ==================================================
 # ЗАПУСК
 # ==================================================
 async def main():
     logging.basicConfig(level=logging.INFO)
     init_db()
-    init_promo_table()  # Создаем таблицу промокодов
-    start_promo_cleaner()  # Запускаем очиститель просроченных промокодов
+    
+    # Запускаем фоновую очистку промокодов
+    cleanup_thread = threading.Thread(target=cleanup_expired_promocodes, daemon=True)
+    cleanup_thread.start()
     
     print("=" * 60)
     print("🚀 БОТ ЗАПУЩЕН!")
     print("📦 База данных: Supabase + SQLite")
     print("👥 Пользователи сохраняются в Supabase")
-    print("🎫 Промокоды хранятся в Supabase (с автоочисткой)")
+    print("🎫 Промокоды хранятся в ОЗУ (автоочистка каждую минуту)")
     print("=" * 60)
     
     await bot.delete_webhook(drop_pending_updates=True)
